@@ -1,0 +1,739 @@
+#+title: GNU Emacs configuration
+#+author: David Mann
+#+email: mannd@epstudiossoftware.com
+
+This is yet another attempt to reorganize my Emacs configuration files, taking an alternative approach advocated by Prot (Protesilaos) in [[https://protesilaos.com/emacs/dotemacs][his Emacs config]].
+
+To produce the Emacs Lisp configuration files, the code blocks must be tangled using =C-c C-v C-t=.
+
+My basic philosophy is to only install what's necessary and pleasing.  I have a strong bias towards built-in Emacs functionality.  When using packages, I am biased towards GNU ELPA packages, followed by NonGNU ELPA, and finally MELPA.
+
+I am keeping notes for this process temporarily in [[denote:20260817T204155][Reconfiguring Emacs]], but eventually the elements of the process will be outlined here and in a blog post.
+
+** TODO Compare the old and new configuration startup times
+Use ~(emacs-init-time)~ to evaluate Emacs startup time.
+
+* Installation
+This configuration uses as much as possible the default file locations for each package.  I have set up my macOS system and my Windows system running under Parallels to use the identical file paths, by providing symbolic links in Windows to the macOS file system.
+
+Symbolic links in Windows are created by running the Command Prompt with administrator privileges.  The commands are:
+
+- For a File: ~mklink <LinkPath> <TargetPath>~
+- For a Folder (Directory): ~mklink /D <LinkPath> <TargetPath>~
+- For a Directory Junction: ~mklink /J <LinkPath> <TargetPath>~
+
+Right now the configuration files are in =~/tmp-dotfiles/emacs/= which is under Git version control.  In the past =~/.emacs.d/= was a symbolic link created by GNU Stow to the =dotfiles/emacs/= directory, which meant that temporary files, downloaded Lisp code and everything else were under version control, which was not a good idea.
+
+Now the three files, =dem-emacs.org=, =early-init.el= and =init.el= are individually linked to symbolic links in =~/.emacs.d/= (actually =tmp-emacs.d/= during development) using specific stow commands:
+
+#+begin_src bash
+  # link individual files in emacs subdir to tmp-emacs.d/
+  cd ~/tmp-dotfiles
+  stow --no-folding --target="$HOME/tmp-emacs.d" emacs
+#+end_src
+
+For testing I am running a clean copy of Emacs 31 with the following command line options:
+
+#+begin_src bash
+  # run Emacs using ~/tmp-emacs.d as startup directory
+  emacs --init-directory="$HOME/tmp-emacs.d"
+#+end_src
+
+* The =early-init.el= file
+
+** Insert lexical binding cookie
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  ;;; -*- lexical-binding: t; -*-
+#+end_src
+
+** Set some defaults
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  (setq frame-resize-pixelwise t ; makes frame resizing smoother
+        frame-title-format '("%b") ; just the buffer name
+        ring-bell-function #'ignore ; ignore function returns nil
+        use-dialog-box t ; mouse functions use dialogs...
+        use-file-dialog nil ; ...except for file dialogs
+        use-short-answers nil ; I don't mind typing long answers
+        inhibit-splash-screen t
+        inhibit-startup-screen t
+        inhibit-startup-buffer-menu t)
+#+end_src
+
+** Frame size
+Some initial Emacs frame setup, including frame size.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  (menu-bar-mode t)
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1)
+
+  ;; We don't set menu-bar-lines to 0 because we keep the menu.
+  (setq initial-frame-alist `((horizontal-scroll-bars . nil)
+                              (tool-bar-lines . 0)
+                              (vertical-scroll-bars . nil)
+                              (width . (text-pixels . 800))
+                              (height . (text-pixels . 600))
+                              (border-width . 0)))
+#+end_src
+
+** Define some directories
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  ;; Define the var directory, for multiple uses
+  (defconst dem-var-directory
+    (expand-file-name "var/" user-emacs-directory))
+
+  (make-directory dem-var-directory t)
+
+  (defconst dem-cache-directory
+    (expand-file-name "cache/" user-emacs-directory))
+
+  (make-directory dem-cache-directory t)
+#+end_src
+
+** Auto-save-list
+Put auto-save-list in the =var/= directory.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+
+  ;; Create auto-save-list directory
+  (let ((dir (expand-file-name "auto-save-list/" dem-var-directory)))
+    (make-directory dir t)
+    (setq auto-save-list-file-prefix
+          (expand-file-name ".saves-" dir)))
+#+end_src
+
+** Package variable initialization
+This should be done in =early-init.el=, before packages are initialized.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  ;; Package files installed by package.el
+  (setq package-user-dir
+        (expand-file-name "elpa/" user-emacs-directory))
+
+  ;; Native-compilation cache
+  (startup-redirect-eln-cache
+   (expand-file-name "cache/eln/" user-emacs-directory))
+#+end_src
+
+* The =init.el= file
+The major part of the configuration is in this file.
+
+** Insert lexical binding cookie
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;;; -*- lexical-binding: t; -*-
+#+end_src
+
+** Package initialization
+Emacs 31 includes GNU ELPA and NonGNU ELPA repositories by default, so no need to add them.  In addition, much of the package initialization code I used to use is no longer necessary or desired.  However =package.el= does need to be loaded to add new package archives.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (require 'package)
+
+  (add-to-list 'package-archives
+               '("melpa" . "https://melpa.org/packages/")
+  	     t)
+
+  ;; Prioritize ELPA repositories over MELPA.
+  (setq package-archive-priorities
+        '(("gnu" . 30)
+  	("nongnu" . 20)
+  	("melpa" . 10)))
+#+end_src
+
+** Handle Emacs generated files
+Emacs generates backup and temporary files.  I would like to keep them out of the top-level Emacs configuration directory.
+
+Set the directory to hold backups:
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Define and create directories for Emacs backup files.
+  (defconst dem-backup-directory
+    (expand-file-name "backups/" dem-var-directory))
+
+  (make-directory dem-backup-directory t)
+
+  ;; Configure backup files.
+  (setq backup-directory-alist
+        `(("." . ,dem-backup-directory))
+        version-control t
+        kept-new-versions 5
+        kept-old-versions 2
+        delete-old-versions t
+        backup-by-copying t)
+#+end_src
+
+Set the directory to hold auto-save files:
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Define and create directory for auto-save files.
+  (defconst dem-auto-save-directory
+    (expand-file-name "auto-save/" dem-var-directory))
+
+    (make-directory dem-auto-save-directory t)
+
+    (setq auto-save-file-name-transforms
+  	`((".*" ,dem-auto-save-directory t)))
+#+end_src
+
+Settings saved through the Customize interface are written to =custom.el=.  We want the =dem-emacs.org= file to be the definitive source of startup packages, so we won't load =custom.el= on startup.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Setup custom.el but don't load it on startup.
+  (setq custom-file
+        (expand-file-name "custom.el" dem-var-directory))
+#+end_src
+
+Use =savehist-mode= to save the minibuffer history.  It also uses a directory in =var/=.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Preserve minibuffer history between Emacs sessions.
+  (setq savehist-file
+       (expand-file-name "savehist" dem-var-directory))
+  
+  (savehist-mode 1)
+#+end_src
+
+
+** Auto-update
+Ensure that file changes and directory changes made by external applications are automatically updated in Emacs.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Refresh file and non-file buffers when their underlying data changes.
+  (setq global-auto-revert-non-file-buffers t)
+  (global-auto-revert-mode 1)
+#+end_src
+
+** Font
+I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Aporetic Sans Mono/ and like it.  It is present on both my macOS and Windows systems.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (set-face-attribute 'default nil
+  		    :family "Aporetic Sans Mono"
+  		    :height 140)
+#+end_src
+
+** Theme
+I think I like the Doric themes the best, but for the moment we will startup with Prot's standard-themes.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package modus-themes
+    :ensure t)
+
+  (use-package ef-themes
+    :ensure t)
+
+  (use-package doric-themes
+    :ensure t)
+
+  (use-package standard-themes
+    :ensure t
+    :demand t
+    :config
+    (load-theme 'standard-light-tinted t)) ; preferred theme at the moment
+#+end_src
+
+** Mouse
+With modern Emacs, the only mouse tweak that is needed is to activate ~pixel-scroll-precision-mode~.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Smooth trackpad scrolling.
+  (pixel-scroll-precision-mode 1)
+#+end_src
+
+** Deletion
+Deleted files should always go to the trash.  Note that Emacs knows how to do this on whatever system it is running.  There is no need to define a trash directory.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Deleted files and directories go to the trash.
+  (setq delete-by-moving-to-trash t) 
+#+end_src
+
+** Moving between windows
+Emacs uses old-fashioned terminology, calling what modern interfaces call windows frames, and panels within these frames windows.
+
+I prefer alternatives to =C-x o= for moving between windows.  I change the default keybindings of Windmove from =S-<arrow key>= to =s-<arrow key>= (s = super key = command key on macOS).  This also avoids a conflict with the movement keys in the Org mode calendar.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package windmove
+    :ensure nil
+    :if (eq system-type 'darwin)
+    :config
+    (windmove-default-keybindings 'super))
+
+  (global-set-key (kbd "C-x C-n") #'other-window)
+
+  (global-set-key
+   (kbd "C-x C-p")
+   (lambda ()
+     (interactive)
+     (other-window -1)))
+#+end_src
+
+** Completion
+I use modern Emacs completion packages that are all available from GNU ELPA.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package vertico
+  :ensure t
+  :init
+  (vertico-mode 1))
+
+(use-package marginalia
+  :ensure t
+  :init
+  (marginalia-mode 1))
+
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-overrides
+   '((file (styles basic partial-completion)))))
+#+end_src
+
+** Dired
+I make some minor tweaks to Dired, the directory manager for Emacs.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Make Dired better behaved.
+  (use-package dired
+    :ensure nil
+    :hook
+    ((dired-mode . dired-hide-details-mode)
+     (dired-mode . hl-line-mode))
+    :custom
+    (dired-dwim-target t)) ; used for copying from one dired buffer to another
+#+end_src
+
+** Evil mode
+I prefer Evil mode with Vi/Vim keybindings for editing text to Emacs keybindings.  However for other Emacs buffers, Evil mode is a poor fit.  In the past I tried some compatibility modes or tried selecting the individual buffer types with which I wanted to use Emacs keybindings.  However my latest strategy is to just use Evil for modes derived from =text-mode= and =prog-mode=, and use pure Emacs for the rest.  If I want to do Evil key-binding in those buffers, there is a function ~dem-toggle-evil-local-mode~ that is bound to =C-c e=.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Use evil-mode for Vim-like editing in text and prog-mode buffers.
+  ;; Note that I use C-u for scrolling, like in Vim.  However,
+  ;; in Insert mode, C-u acts like it does in Emacs, which is handy.
+  (use-package evil
+    :ensure t
+    :init
+    (setq 
+     evil-want-integration t
+     evil-want-keybinding nil
+     evil-want-C-u-scroll t 
+     evil-want-C-i-jump nil
+     evil-undo-system 'undo-redo)
+
+    ;; Work around Evil 1.15.0 bug under Emacs 31.
+    ;; Remove when a fixed Evil release reaches GNU/NonGNU ELPA.
+    (defvar evil-mode-buffers nil)
+    
+    :config
+    ;; Make vertical movement keys follow visual rather than logical lines.
+    (define-key evil-normal-state-map [remap evil-next-line] #'evil-next-visual-line)
+    (define-key evil-normal-state-map [remap evil-previous-line]  #'evil-previous-visual-line)
+    (define-key evil-motion-state-map [remap evil-next-line] #'evil-next-visual-line)
+    (define-key evil-motion-state-map [remap evil-previous-line]  #'evil-previous-visual-line)
+    
+    (setq-default evil-cross-lines t) ; motion keys go to next line
+    
+    (defun dem-toggle-evil-local-mode ()
+      "Toggle Evil in the current buffer."
+      (interactive)
+      (if evil-local-mode
+          (progn
+            (evil-local-mode -1)
+            (message "Evil disabled in this buffer"))
+        (evil-local-mode 1)
+        (message "Evil enabled in this buffer")))
+
+    (global-set-key (kbd "C-c e") #'dem-toggle-evil-local-mode)
+
+    (defun dem-enable-evil-for-selected-modes ()
+      "Enable Evil only in buffers derived from text or programming modes."
+      (when (derived-mode-p 'text-mode 'prog-mode)
+        (evil-local-mode 1)))
+
+    (add-hook 'after-change-major-mode-hook #'dem-enable-evil-for-selected-modes))
+
+  ;; use evil-matchit to match more tags with "%"
+  (use-package evil-matchit
+    :ensure t
+    :config
+    (global-evil-matchit-mode 1))
+
+  ;; implement number functions
+  (use-package evil-numbers
+    :ensure t
+    :bind
+    (:map evil-normal-state-map
+    	("C-=" . evil-numbers/inc-at-pt)
+    	("C--" . evil-numbers/dec-at-pt)))
+#+end_src
+
+** Org mode
+Org mode is a markup language, an organizer, an outliner, and more.  I have streamlined my org configuration and will have to see if I need to add features back in.
+
+Note that my org directory =~/org/= is a symbolic link to a Dropbox directory.  This link is present both for my Mac and for Windows run on my Mac via Parallels.
+
+Since =~/org/= is the default value of =org-directory=, there is no need for platform-specific configuration here.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package org
+    :ensure nil
+    
+    :init
+    ;; We must define org-directory here even though it is the
+    ;; default, to avoid an uninitialized variable error on startup.
+    (setq org-directory "~/org" 
+        org-default-notes-file
+          (expand-file-name "inbox.org" org-directory))
+    (setq org-agenda-files
+          '("inbox.org"
+            "personal.org"
+            "home.org"
+            "epstudios.org"
+            "family.org"
+            "org.org"))
+    (setq org-todo-keywords
+          '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!)")
+            (sequence "PENDING(p)" "WAITING(w@/!)" "HOLD(h@/!)" "SOMEDAY(s@/!)" "|" "CANCELLED(c@/!)")))
+    (setq org-capture-templates
+          '(("t" "todo" entry
+             (file+headline org-default-notes-file "Tasks")
+             "* TODO %?\n%U\n%a\n")))
+
+    :bind
+    (("C-c l" . org-store-link)
+     ("C-c a" . org-agenda)
+     ("C-c c" . org-capture)
+     ("C-c b" . org-switchb))
+
+    :hook
+    (org-mode . visual-line-mode)
+
+    :custom
+    (org-agenda-include-diary t)
+    (org-hide-leading-stars t)
+    (org-startup-indented t)
+    (org-hide-emphasis-markers t)
+    (org-log-done 'time)
+    (org-log-into-drawer "LOGBOOK")
+    (org-tags-column 0)) ; tags are just after headline
+  ;; Other options
+  ;; to be tested to see if these are indeed useful
+  ;; (org-M-RET-may-split-line '((default . nil)))
+  ;; (org-insert-heading-respect-content t)
+#+end_src
+
+Org-appear shows org delimiters when the point is over them, making their editing easier.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; org-appear-mode shows and hides emphasis delimiters
+  (use-package org-appear
+    :ensure t
+    :hook (org-mode . org-appear-mode))
+#+end_src
+
+** Olivetti
+This is pleasant "no distractions" mode that I use when typing text on full-screen Emacs.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package olivetti
+    :ensure t)
+#+end_src
+
+** Denote
+
+The default Denote directory is =~/Documents/notes/=.  This directory exists in macOS and there is symbolic link to the macOS directory in Windows with the same path.  So there is no need to set =denote-directory= here.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package denote
+    :ensure t
+    :hook
+    (dired-mode . denote-dired-mode)
+    :config
+    (denote-rename-buffer-mode 1)) 
+
+  ;; Oddly, denote seems to lack a function to just open the notes directory.
+  (defun dem-denote-open-denote-dir ()
+    "Open the Denote directory."
+    (interactive)
+    (require 'denote)
+    (dired denote-directory))
+#+end_src
+
+** Spell checking
+I use jinx for spell checking.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package jinx
+    :ensure t
+    :hook (text-mode . jinx-mode)
+    :bind
+    (("M-$" . jinx-correct)
+     ("C-M-$" . jinx-languages)
+     ("M-n" . jinx-next)
+     ("M-p" . jinx-previous)))
+#+end_src
+
+** PDF tools
+PDF Tools allows annotation and navigation of PDF files.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package pdf-tools
+    :ensure t
+    :init
+    (pdf-loader-install)
+
+    :hook
+    (pdf-view-mode . pdf-view-roll-minor-mode) ; smoother PDF scrolling
+
+    :config
+    (keymap-set pdf-view-mode-map "C-s" #'isearch-forward)
+    (keymap-set pdf-view-mode-map "C-r" #'isearch-backward))
+
+  (use-package org-pdftools
+    :ensure t
+    :after (org pdf-tools)
+    :hook
+    (org-mode . org-pdftools-setup-link))
+#+end_src
+
+*** TODO Test on Windows.  PDF tools may not work well on Windows.
+
+** Org-roam
+Org-roam was my prior note-taking system, which I have abandoned and replaced by Denote.  However I still have lots of Org-roam notes that I'd like someday to transfer to Denote.  Until that day arrives, I will continue to need access to the Org-roam notes.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package org-roam
+    :ensure t
+    :after org
+
+    :custom
+    (org-roam-directory
+     (file-truename "~/Documents/org-roam")) ; default is ~/org-roam
+    (org-roam-db-location
+     (expand-file-name "org-roam.db" dem-var-directory))
+
+    :bind
+    (("C-c n l" . org-roam-buffer-toggle)
+     ("C-c n f" . org-roam-node-find)
+     ("C-c n i" . org-roam-node-insert))
+
+    :config
+    (setq org-roam-capture-templates
+          '(("d" "default" plain "%?"
+             :target
+             (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                        "#+title: ${title}\n#+filetags: ")
+             :unnarrowed t)
+            ("r" "bibliography reference" plain "%?"
+             :target
+             (file+head "references/${citekey}.org"
+                        "#+title: ${title}\n")
+             :unnarrowed t)))
+
+    (setq org-roam-node-display-template
+          (concat "${title} "
+                  (propertize "${tags}" 'face 'org-tag)))
+
+    (org-roam-db-autosync-mode 1))
+#+end_src
+
+*** TODO Make symbolic link in Windows pointing to ~/Documents/org-roam
+
+** Magit
+Magit is an essential UI to Git.
+
+#+begin_src emacs-lisp :tangle "init.el"
+(use-package magit
+  :ensure t
+  :bind
+  ("C-x g" . magit-status))
+#+end_src
+
+** Transient
+Transient is built-in and used by Magit.  Make it keep its files in the =var/= directory.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package transient
+    :ensure nil
+    :custom
+    (transient-history-file
+     (expand-file-name "transient/history.el" dem-var-directory))
+    (transient-values-file
+     (expand-file-name "transient/values.el" dem-var-directory))
+    (transient-levels-file
+     (expand-file-name "transient/levels.el" dem-var-directory)))
+#+end_src
+
+** Project
+I used to use =projectile=, but the built-in package =project= caught up in features and is fine.  Magit is added to the options when opening a project.  We hide the projects file under the =var/= directory.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package project
+    :ensure nil
+    :init
+    (setq project-list-file
+  	(expand-file-name "projects.eld" dem-var-directory))
+    
+    :config
+    (keymap-set project-prefix-map "m" #'magit-project-status)
+    (add-to-list 'project-switch-commands
+                 '(magit-project-status "Magit")
+                 t))
+#+end_src
+
+** Citar
+Citar is useful for providing references.  I emulate the identical path in Windows of the relevant files using symbolic links.
+
+#+begin_src emacs-lisp :tangle "init.el"
+ (use-package citar
+  :ensure t
+  :after org
+
+  :custom
+  (org-cite-global-bibliography
+   '("~/Documents/Bibtex/My Library.bib"))
+  (org-cite-csl-styles-dir
+   (expand-file-name "~/Zotero/styles/"))
+
+  (org-cite-insert-processor 'citar)
+  (org-cite-follow-processor 'citar)
+  (org-cite-activate-processor 'citar)
+
+  (org-cite-export-processors
+   '((t . (csl "american-medical-association.csl"))))
+
+  (citar-bibliography org-cite-global-bibliography)
+
+  :bind
+  (:map org-mode-map
+        ("C-c C-b" . org-cite-insert))) 
+#+end_src
+
+** Citar-Denote
+Citar-Denote allows the creation of bibliographic notes.
+
+#+BEGIN_SRC emacs-lisp :tangle "init.el"
+  (use-package citar-denote
+    :ensure t
+    :after (citar denote)
+    :config
+    (citar-denote-mode 1))
+#+END_SRC
+
+** Consult
+Consult has many features to improve standard Emacs functions.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package consult
+    :ensure t
+    :bind
+    (("M-g M-g" . consult-goto-line)
+     ("C-x b" . consult-buffer)
+     ("M-s r" . consult-ripgrep)
+     ("C-s" . consult-line))) 
+#+end_src
+
+** Consult-Denote
+Consult-Denote integrates Denote with Consult.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package consult-denote
+    :ensure t
+    :after (consult denote)
+    :config
+    (consult-denote-mode 1))
+#+end_src
+
+** Consult Notes
+Consult Notes combines Denote and Org-roam files into one searchable list using Consult.  At some point if I migrate away from Org-roam, I could eliminate this.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package consult-notes
+    :ensure t
+    :custom
+    (consult-notes-file-dir-sources
+     '(("Org Roam" ?r "~/Documents/org-roam")
+       ("Bibliographic References" ?b "~/Documents/org-roam/references")
+       ("Denote" ?d "~/Documents/notes"))))
+#+end_src
+
+** Ledger
+I do home accounting using the Ledger program and Ledger mode.  I no longer use Flycheck but instead use Ledger mode's built-in =ledger-flymake=.  You can use =M-x flymake-show-buffer-diagnostics= to display an error window.  Use =M-g M-n= and =M-g M-p= to go to next and previous errors.
+
+One difference from Flycheck is that Flymake only runs when the buffer is saved.  This makes it much faster, and since I save often, it's not an impediment.
+
+Note that you must activate ledger-mode's built-in =flymake= functionality with the function ~ledger-flymake-enable~.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package ledger-mode
+    :ensure t
+    :custom
+    (ledger-clear-whole-transactions 1)
+    :hook
+    (ledger-mode . ledger-flymake-enable)
+
+    :bind
+    (:map ledger-mode-map
+  	("<f5>" . "Assets:Canvas:Checking")
+  	("<f6>" . "Assets:TIAA:Checking")
+  	("<f7>" . "Assets:BanquePopulaire:Checking")
+  	("<f8>" . "€"))
+
+    :mode
+    (("\\.ledger\\'" . ledger-mode)
+     ("\\.dat\\'" . ledger-mode)))
+#+end_src
+
+** Corfu
+Corfu uses Emacs's built-in completion framework.  We are using it in place of =company-mode=.  Completion is set up to be automatic after a short delay, and one can scroll up and down the completion list with arrow keys or =M-n= and =M-p=.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package corfu
+    :ensure t
+    :custom
+    (corfu-auto t)
+    (corfu-cycle t)
+    :init
+    (global-corfu-mode 1))
+#+end_src
+
+** Language support
+I am just adding the minimum syntax highlighting at this point with optional =eglot= support.  For the moment I have only added =eglot= support to Swift, and it is not on by default.  To add it automatically, add ~eglot-ensure~ as a hook to =swift-mode=.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Objective-C and Java support are built in.
+  (use-package cc-mode
+    :ensure nil)
+
+  ;; C# has built-in support in modern Emacs.
+  (use-package csharp-mode
+    :ensure nil)
+
+  (use-package kotlin-mode
+    :ensure t)
+
+  (use-package swift-mode
+    :ensure t) 
+
+  (use-package eglot
+    :ensure nil
+    :config
+    (add-to-list 'eglot-server-programs
+  	       '(swift-mode . ("sourcekit-lsp"))))
+#+end_src
+
+I am working through the Scheme code in the book /Structure and Interpretaton of Computer Programs/ and so need a compatible Scheme language and a REPL.  This only works if Racket is installed on the system.  I only do this on macOS, so this won't work on Windows, but that's not a problem.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package geiser
+    :ensure t)
+
+  (use-package geiser-racket
+    :ensure t)
+#+end_src
