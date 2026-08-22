@@ -50,9 +50,7 @@
 (setq global-auto-revert-non-file-buffers t)
 (global-auto-revert-mode 1)
 
-(set-face-attribute 'default nil
-		    :family "Aporetic Sans Mono"
-		    :height 140)
+(set-frame-font "Aporetic Sans Mono-18" nil t)
 
 (use-package modus-themes
   :ensure t)

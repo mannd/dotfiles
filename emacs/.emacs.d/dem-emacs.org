@@ -2,7 +2,7 @@
 #+author: David Mann
 #+email: mannd@epstudiossoftware.com
 
-This is yet another attempt to reorganize my Emacs configuration files, taking an alternative approach advocated by Prot (Protesilaos) in [[https://protesilaos.com/emacs/dotemacs][his Emacs config]].
+This is my literate Emacs configuration file, created using an approach advocated by Prot (Protesilaos) in [[https://protesilaos.com/emacs/dotemacs][his Emacs configuration]].
 
 To produce the Emacs Lisp configuration files, the code blocks must be tangled using =C-c C-v C-t=.
 
@@ -10,8 +10,9 @@ My basic philosophy is to only install what's necessary and pleasing.  I have a 
 
 I am keeping notes for this process temporarily in [[denote:20260817T204155][Reconfiguring Emacs]], but eventually the elements of the process will be outlined here and in a blog post.
 
-** TODO Compare the old and new configuration startup times
-Use ~(emacs-init-time)~ to evaluate Emacs startup time.
+Here is a comparison of the startup time of my new configuration versus the old one, using =M-x emacs-init-time=:
+    Old configuration: 6.265956 seconds
+    New configuration: 1.599190 seconds
 
 * Installation
 This configuration uses as much as possible the default file locations for each package.  I have set up my macOS system and my Windows system running under Parallels to use the identical file paths, by providing symbolic links in Windows to the macOS file system.
@@ -211,9 +212,7 @@ Ensure that file changes and directory changes made by external applications are
 I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Aporetic Sans Mono/ and like it.  It is present on both my macOS and Windows systems.
 
 #+begin_src emacs-lisp :tangle "init.el"
-  (set-face-attribute 'default nil
-  		    :family "Aporetic Sans Mono"
-  		    :height 140)
+  (set-frame-font "Aporetic Sans Mono-18" nil t)
 #+end_src
 
 ** Theme
