@@ -6,7 +6,7 @@ This is my literate Emacs configuration file, created using an approach advocate
 
 To produce the Emacs Lisp configuration files, the code blocks must be tangled using =C-c C-v C-t=.
 
-My philosophy is to only install what I currently am using.  I have a strong bias for built-in Emacs functionality.  When using packages, I prefer GNU ELPA packages, followed by NonGNU ELPA, and finally MELPA.  I have cut out a lot of eye-candy and fluff.  The resulting configuration is minimalist, which I find pleasing.
+My philosophy is to only install what I am currently using.  I have a strong bias for built-in Emacs functionality.  When using packages, I prefer GNU ELPA packages, followed by NonGNU ELPA, and finally MELPA.  I have cut out a lot of eye-candy and fluff.  The resulting configuration is minimalist, which I find pleasing.
 
 I will write up the details of how I converted from my old configuration to this new one in a blog post.
 
@@ -15,7 +15,7 @@ Here is a comparison of the startup time of my new configuration versus the old 
     New configuration: 1.599190 seconds
 
 * Installation
-This configuration uses as much as possible the default file locations for each package.  I have set up my macOS system and my Windows system running under Parallels to use identical file paths, by providing symbolic links in Windows to the macOS file system.
+This configuration uses the default file locations for each package.  I have set up my macOS system and my Windows system running under Parallels to use identical file paths, by providing symbolic links in Windows to the macOS file system.
 
 Symbolic links in Windows are created by running the Command Prompt with administrator privileges.  The commands are:
 
@@ -41,7 +41,7 @@ Thus =~/dotfiles/emacs/.emacs.d/= contains just three files:
 └── init.el
 #+end_example
 
-=~/.emacs.d/= contains symbolic links to those files, plus directories to contain the files that Emacs uses and that should not be put under version control.
+=~/.emacs.d/= contains symbolic links to those files, plus directories that contain the files that Emacs uses.  These latter directories should not be put under version control.
 
 #+begin_example
 ~/.emacs.d $ tree -L 1
@@ -287,7 +287,7 @@ With modern Emacs, the only mouse tweak that is needed is to activate ~pixel-scr
 #+end_src
 
 ** Deletion
-Deleted files should always go to the trash.  Note that Emacs knows how to do this on whatever system it is running.  There is no need to define a trash directory.
+Deleted files should always go to the trash.  Note that Emacs knows how to do this on whatever system it is running.  There is no need to specify the trash directory.
 
 #+begin_src emacs-lisp :tangle "init.el"
   ;; Deleted files and directories go to the trash.
@@ -502,7 +502,7 @@ It seems Org mode needs =htmlize= to export to HTML, but it isn't installed auto
 #+end_src
 
 ** Olivetti
-This is pleasant "no distractions" mode that I use when typing text on full-screen Emacs.
+This is a pleasant "no distractions" mode that I use when typing text on full-screen Emacs.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package olivetti
@@ -511,7 +511,7 @@ This is pleasant "no distractions" mode that I use when typing text on full-scre
 
 ** Denote
 
-The default Denote directory is =~/Documents/notes/=.  This directory exists in macOS and there is symbolic link to the macOS directory in Windows with the same path.  So there is no need to set =denote-directory= here.
+The default Denote directory is =~/Documents/notes/=.  This directory exists in macOS and there is a symbolic link to the macOS directory in Windows with the same path.  So there is no need to set =denote-directory= here.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package denote
@@ -544,7 +544,7 @@ I use jinx for spell checking.
 #+end_src
 
 ** PDF tools
-PDF Tools allows annotation and navigation of PDF files.
+The PDF Tools package allows annotation and navigation of PDF files.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package pdf-tools
@@ -636,7 +636,7 @@ Transient is built-in and used by Magit.  Make it keep its files in the =var/= d
 #+end_src
 
 ** Project
-I used to use =projectile=, but the built-in package =project= caught up in features and is fine.  Magit is added to the options when opening a project.  We hide the projects file under the =var/= directory.
+I used to use =projectile=, but the built-in package =project= caught up in features and is fine.  Magit is added to the options when opening a project.  We hide the projects file in the =var/= directory.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package project
@@ -729,7 +729,7 @@ Consult Notes combines Denote and Org-roam files into one searchable list using 
 #+end_src
 
 ** Ledger
-I do home accounting using the Ledger program and Ledger mode.  I no longer use Flycheck but instead use Ledger mode's built-in =ledger-flymake=.  You can use =M-x flymake-show-buffer-diagnostics= to display an error window.  Use =M-g M-n= and =M-g M-p= to go to next and previous errors.
+I do home accounting using the Ledger program and Ledger mode.  I no longer use Flycheck but instead use Ledger mode's built-in =ledger-flymake=.  Use =M-x flymake-show-buffer-diagnostics= to display an error window.  Use =M-g M-n= and =M-g M-p= to go to next and previous errors.
 
 One difference from Flycheck is that Flymake only runs when the buffer is saved.  This makes it much faster, and since I save often, it's not an impediment.
 
@@ -762,7 +762,7 @@ Corfu uses Emacs's built-in completion framework.  We are using it in place of =
 #+end_src
 
 ** Language support
-I am just adding the minimum syntax highlighting at this point with optional =eglot= support.  For the moment I have only added =eglot= support to Swift, and it is not on by default.  To add it automatically, add ~eglot-ensure~ as a hook to =swift-mode=.
+I am just adding the minimum language syntax highlighting at this point with optional =eglot= support.  For the moment I have only added =eglot= support to Swift, and it is not on by default.  To add it automatically, add ~eglot-ensure~ as a hook to =swift-mode=.
 
 #+begin_src emacs-lisp :tangle "init.el"
   ;; Objective-C and Java support are built in.
@@ -786,7 +786,7 @@ I am just adding the minimum syntax highlighting at this point with optional =eg
   	       '(swift-mode . ("sourcekit-lsp"))))
 #+end_src
 
-I am working through the Scheme code in the book /Structure and Interpretaton of Computer Programs/ and so need a compatible Scheme language and a REPL.  This only works if Racket is installed on the system.  I only do this on macOS, so this won't work on Windows, but that's not a problem.
+I am working through the Scheme code in the book /Structure and Interpretation of Computer Programs/ and so need a compatible Scheme language and a REPL.  This only works if Racket is installed on the system.  I only do this on macOS, so this won't work on Windows, but that's not a problem.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package geiser
