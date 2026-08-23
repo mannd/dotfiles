@@ -46,6 +46,18 @@
 
 (savehist-mode 1)
 
+(put 'upcase-region 'disabled nil)
+(put 'downcase-region 'disabled nil)
+
+(use-package abbrev
+  :ensure nil
+  :hook
+  (text-mode . abbrev-mode)
+  :custom
+  (save-abbrevs 'silently)
+  (abbrev-file-name
+   (expand-file-name "abbrev_defs" dem-var-directory)))
+
 ;; Refresh file and non-file buffers when their underlying data changes.
 (setq global-auto-revert-non-file-buffers t)
 (global-auto-revert-mode 1)
@@ -103,6 +115,15 @@
   (completion-styles '(orderless basic))
   (completion-category-overrides
    '((file (styles basic partial-completion)))))
+
+(use-package bookmark
+  :ensure nil
+  :custom
+  (bookmark-default-file
+   (expand-file-name "bookmarks" dem-var-directory)))
+
+;; Quick register shortcut to this file's symbolic link
+(set-register ?c `(file . ,(expand-file-name "dem-emacs.org" user-emacs-directory)))
 
 ;; Make Dired better behaved.
 (use-package dired
@@ -386,13 +407,6 @@
   :hook
   (ledger-mode . ledger-flymake-enable)
 
-  :bind
-  (:map ledger-mode-map
-	("<f5>" . "Assets:Canvas:Checking")
-	("<f6>" . "Assets:TIAA:Checking")
-	("<f7>" . "Assets:BanquePopulaire:Checking")
-	("<f8>" . "€"))
-
   :mode
   (("\\.ledger\\'" . ledger-mode)
    ("\\.dat\\'" . ledger-mode)))
@@ -430,3 +444,6 @@
 
 (use-package geiser-racket
   :ensure t)
+
+(load (expand-file-name "private/private.el" user-emacs-directory)
+    'noerror)

@@ -6,38 +6,59 @@ This is my literate Emacs configuration file, created using an approach advocate
 
 To produce the Emacs Lisp configuration files, the code blocks must be tangled using =C-c C-v C-t=.
 
-My basic philosophy is to only install what's necessary and pleasing.  I have a strong bias towards built-in Emacs functionality.  When using packages, I am biased towards GNU ELPA packages, followed by NonGNU ELPA, and finally MELPA.
+My philosophy is to only install what I currently am using.  I have a strong bias for built-in Emacs functionality.  When using packages, I prefer GNU ELPA packages, followed by NonGNU ELPA, and finally MELPA.  I have cut out a lot of eye-candy and fluff.  The resulting configuration is minimalist, which I find pleasing.
 
-I am keeping notes for this process temporarily in [[denote:20260817T204155][Reconfiguring Emacs]], but eventually the elements of the process will be outlined here and in a blog post.
+I will write up the details of how I converted from my old configuration to this new one in a blog post.
 
 Here is a comparison of the startup time of my new configuration versus the old one, using =M-x emacs-init-time=:
     Old configuration: 6.265956 seconds
     New configuration: 1.599190 seconds
 
 * Installation
-This configuration uses as much as possible the default file locations for each package.  I have set up my macOS system and my Windows system running under Parallels to use the identical file paths, by providing symbolic links in Windows to the macOS file system.
+This configuration uses as much as possible the default file locations for each package.  I have set up my macOS system and my Windows system running under Parallels to use identical file paths, by providing symbolic links in Windows to the macOS file system.
 
 Symbolic links in Windows are created by running the Command Prompt with administrator privileges.  The commands are:
 
 - For a File: ~mklink <LinkPath> <TargetPath>~
 - For a Folder (Directory): ~mklink /D <LinkPath> <TargetPath>~
-- For a Directory Junction: ~mklink /J <LinkPath> <TargetPath>~
 
-Right now the configuration files are in =~/tmp-dotfiles/emacs/= which is under Git version control.  In the past =~/.emacs.d/= was a symbolic link created by GNU Stow to the =dotfiles/emacs/= directory, which meant that temporary files, downloaded Lisp code and everything else were under version control, which was not a good idea.
+In the earlier configuration, =~/.emacs.d/= was a symbolic link created by GNU Stow to the =dotfiles/emacs/= directory, which meant that temporary files, downloaded Lisp code and everything else were under version control, which was not a good idea.
 
-Now the three files, =dem-emacs.org=, =early-init.el= and =init.el= are individually linked to symbolic links in =~/.emacs.d/= (actually =tmp-emacs.d/= during development) using specific stow commands:
+Now the three files, =dem-emacs.org=, =early-init.el= and =init.el= are individually linked to symbolic links in =~/.emacs.d/= using a specific Stow command:
 
 #+begin_src bash
-  # link individual files in emacs subdir to tmp-emacs.d/
-  cd ~/tmp-dotfiles
-  stow --no-folding --target="$HOME/tmp-emacs.d" emacs
+  cd ~/dotfiles
+  stow --no-folding emacs
 #+end_src
 
-For testing I am running a clean copy of Emacs 31 with the following command line options:
+Thus =~/dotfiles/emacs/.emacs.d/= contains just three files:
+
+#+begin_example
+~/dotfiles/emacs/.emacs.d $ tree .
+.
+├── dem-emacs.org
+├── early-init.el
+└── init.el
+#+end_example
+
+=~/.emacs.d/= contains symbolic links to those files, plus directories to contain the files that Emacs uses and that should not be put under version control.
+
+#+begin_example
+~/.emacs.d $ tree -L 1
+.
+├── cache
+├── dem-emacs.org -> ../dotfiles/emacs/.emacs.d/dem-emacs.org
+├── early-init.el -> ../dotfiles/emacs/.emacs.d/early-init.el
+├── elpa
+├── init.el -> ../dotfiles/emacs/.emacs.d/init.el
+├── private
+└── var
+#+end_example
+
+If I want to use my old configuration I can do this:
 
 #+begin_src bash
-  # run Emacs using ~/tmp-emacs.d as startup directory
-  emacs --init-directory="$HOME/tmp-emacs.d"
+  emacs --init-directory="$HOME/archive/emacs-old"
 #+end_src
 
 * The =early-init.el= file
@@ -198,6 +219,27 @@ Use =savehist-mode= to save the minibuffer history.  It also uses a directory in
   (savehist-mode 1)
 #+end_src
 
+** Disabled commands
+Disable some warnings from Emacs for rarely used commands.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (put 'upcase-region 'disabled nil)
+  (put 'downcase-region 'disabled nil)
+#+end_src
+
+** Abbreviations
+Store abbreviations in the =var/= directory.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package abbrev
+    :ensure nil
+    :hook
+    (text-mode . abbrev-mode)
+    :custom
+    (save-abbrevs 'silently)
+    (abbrev-file-name
+     (expand-file-name "abbrev_defs" dem-var-directory)))
+#+end_src
 
 ** Auto-update
 Ensure that file changes and directory changes made by external applications are automatically updated in Emacs.
@@ -213,6 +255,7 @@ I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Apo
 
 #+begin_src emacs-lisp :tangle "init.el"
   (set-frame-font "Aporetic Sans Mono-18" nil t)
+
 #+end_src
 
 ** Theme
@@ -292,6 +335,20 @@ I use modern Emacs completion packages that are all available from GNU ELPA.
   (completion-styles '(orderless basic))
   (completion-category-overrides
    '((file (styles basic partial-completion)))))
+#+end_src
+
+** Bookmarks
+Put the bookmark file in =~/.emacs.d/var/=.  Set up a few named bookmarks.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package bookmark
+    :ensure nil
+    :custom
+    (bookmark-default-file
+     (expand-file-name "bookmarks" dem-var-directory)))
+
+  ;; Quick register shortcut to this file's symbolic link
+  (set-register ?c `(file . ,(expand-file-name "dem-emacs.org" user-emacs-directory)))
 #+end_src
 
 ** Dired
@@ -501,7 +558,8 @@ PDF Tools allows annotation and navigation of PDF files.
     (org-mode . org-pdftools-setup-link))
 #+end_src
 
-*** TODO Test on Windows.  PDF tools may not work well on Windows.
+*** TODO Test on Windows.
+PDF tools may not work well on Windows.
 
 ** Org-roam
 Org-roam was my prior note-taking system, which I have abandoned and replaced by Denote.  However I still have lots of Org-roam notes that I'd like someday to transfer to Denote.  Until that day arrives, I will continue to need access to the Org-roam notes.
@@ -545,7 +603,7 @@ Org-roam was my prior note-taking system, which I have abandoned and replaced by
 *** TODO Make symbolic link in Windows pointing to ~/Documents/org-roam
 
 ** Magit
-Magit is an essential UI to Git.
+Magit is a useful UI for Git.
 
 #+begin_src emacs-lisp :tangle "init.el"
 (use-package magit
@@ -677,13 +735,6 @@ Note that you must activate ledger-mode's built-in =flymake= functionality with 
     :hook
     (ledger-mode . ledger-flymake-enable)
 
-    :bind
-    (:map ledger-mode-map
-  	("<f5>" . "Assets:Canvas:Checking")
-  	("<f6>" . "Assets:TIAA:Checking")
-  	("<f7>" . "Assets:BanquePopulaire:Checking")
-  	("<f8>" . "€"))
-
     :mode
     (("\\.ledger\\'" . ledger-mode)
      ("\\.dat\\'" . ledger-mode)))
@@ -735,4 +786,11 @@ I am working through the Scheme code in the book /Structure and Interpretaton of
 
   (use-package geiser-racket
     :ensure t)
+#+end_src
+
+** Load private configuration
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (load (expand-file-name "private/private.el" user-emacs-directory)
+      'noerror)
 #+end_src
