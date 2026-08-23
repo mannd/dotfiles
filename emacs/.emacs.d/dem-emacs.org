@@ -493,6 +493,14 @@ Org-appear shows org delimiters when the point is over them, making their editin
     :hook (org-mode . org-appear-mode))
 #+end_src
 
+It seems Org mode needs =htmlize= to export to HTML, but it isn't installed automatically as a dependency.  Hence:
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package htmlize
+    :ensure t
+    :after org)
+#+end_src
+
 ** Olivetti
 This is pleasant "no distractions" mode that I use when typing text on full-screen Emacs.
 

@@ -244,6 +244,10 @@
   :ensure t
   :hook (org-mode . org-appear-mode))
 
+(use-package htmlize
+  :ensure t
+  :after org)
+
 (use-package olivetti
   :ensure t)
 
