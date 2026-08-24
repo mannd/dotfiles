@@ -501,6 +501,32 @@ It seems Org mode needs =htmlize= to export to HTML, but it isn't installed auto
     :after org)
 #+end_src
 
+I want to avoid using Evil-org because it is an older package that may not be still maintained.  However the functionality it provided to add new plain-list items above and below a plain-list item using "O" and "o" was useful, so I'll emulate that.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (with-eval-after-load 'org
+  (evil-define-key 'normal org-mode-map
+    (kbd "O")
+    (lambda ()
+      (interactive)
+      (if (org-at-item-p)
+          (progn
+            (org-beginning-of-item)
+            (org-insert-item)
+            (evil-insert-state))
+        (evil-open-above 1)))
+  
+    (kbd "o")
+    (lambda ()
+      (interactive)
+      (if (org-at-item-p)
+          (progn
+            (org-end-of-item)
+            (org-insert-item)
+            (evil-insert-state))
+        (evil-open-below 1)))))
+#+end_src
+
 ** Olivetti
 This is a pleasant "no distractions" mode that I use when typing text on full-screen Emacs.
 
@@ -802,3 +828,4 @@ I am working through the Scheme code in the book /Structure and Interpretation o
   (load (expand-file-name "private/private.el" user-emacs-directory)
       'noerror)
 #+end_src
+

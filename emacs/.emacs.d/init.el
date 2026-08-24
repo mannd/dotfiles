@@ -248,6 +248,28 @@
   :ensure t
   :after org)
 
+(with-eval-after-load 'org
+(evil-define-key 'normal org-mode-map
+  (kbd "O")
+  (lambda ()
+    (interactive)
+    (if (org-at-item-p)
+        (progn
+          (org-beginning-of-item)
+          (org-insert-item)
+          (evil-insert-state))
+      (evil-open-above 1)))
+
+  (kbd "o")
+  (lambda ()
+    (interactive)
+    (if (org-at-item-p)
+        (progn
+          (org-end-of-item)
+          (org-insert-item)
+          (evil-insert-state))
+      (evil-open-below 1)))))
+
 (use-package olivetti
   :ensure t)
 
