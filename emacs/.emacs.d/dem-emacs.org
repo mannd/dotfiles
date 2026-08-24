@@ -379,7 +379,8 @@ I prefer Evil mode with Vi/Vim keybindings for editing text to Emacs keybindings
      evil-want-integration t
      evil-want-keybinding nil
      evil-want-C-u-scroll t 
-     evil-want-C-i-jump nil
+     ; Below might be useful in terminal Emacs, but will comment out for now.
+     ;evil-want-C-i-jump nil
      evil-undo-system 'undo-redo)
 
     ;; Work around Evil 1.15.0 bug under Emacs 31.
@@ -501,30 +502,16 @@ It seems Org mode needs =htmlize= to export to HTML, but it isn't installed auto
     :after org)
 #+end_src
 
-I want to avoid using Evil-org because it is an older package that may not be still maintained.  However the functionality it provided to add new plain-list items above and below a plain-list item using "O" and "o" was useful, so I'll emulate that.
+I don't use all the functionality of Evil-Org, but I do find some of the keybindings useful.  Rather than replicate these functions by hand, I'll just install it.
 
 #+begin_src emacs-lisp :tangle "init.el"
-  (with-eval-after-load 'org
-  (evil-define-key 'normal org-mode-map
-    (kbd "O")
-    (lambda ()
-      (interactive)
-      (if (org-at-item-p)
-          (progn
-            (org-beginning-of-item)
-            (org-insert-item)
-            (evil-insert-state))
-        (evil-open-above 1)))
-  
-    (kbd "o")
-    (lambda ()
-      (interactive)
-      (if (org-at-item-p)
-          (progn
-            (org-end-of-item)
-            (org-insert-item)
-            (evil-insert-state))
-        (evil-open-below 1)))))
+  (use-package evil-org
+    :ensure t
+    :after (evil org)
+    :hook
+    (org-mode . evil-org-mode)
+    :config
+    (evil-org-set-key-theme))
 #+end_src
 
 ** Olivetti
@@ -828,4 +815,6 @@ I am working through the Scheme code in the book /Structure and Interpretation o
   (load (expand-file-name "private/private.el" user-emacs-directory)
       'noerror)
 #+end_src
+
+
 

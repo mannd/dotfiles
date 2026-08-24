@@ -144,7 +144,8 @@
    evil-want-integration t
    evil-want-keybinding nil
    evil-want-C-u-scroll t 
-   evil-want-C-i-jump nil
+   ; Below might be useful in terminal Emacs, but will comment out for now.
+   ;evil-want-C-i-jump nil
    evil-undo-system 'undo-redo)
 
   ;; Work around Evil 1.15.0 bug under Emacs 31.
@@ -248,27 +249,13 @@
   :ensure t
   :after org)
 
-(with-eval-after-load 'org
-(evil-define-key 'normal org-mode-map
-  (kbd "O")
-  (lambda ()
-    (interactive)
-    (if (org-at-item-p)
-        (progn
-          (org-beginning-of-item)
-          (org-insert-item)
-          (evil-insert-state))
-      (evil-open-above 1)))
-
-  (kbd "o")
-  (lambda ()
-    (interactive)
-    (if (org-at-item-p)
-        (progn
-          (org-end-of-item)
-          (org-insert-item)
-          (evil-insert-state))
-      (evil-open-below 1)))))
+(use-package evil-org
+  :ensure t
+  :after (evil org)
+  :hook
+  (org-mode . evil-org-mode)
+  :config
+  (evil-org-set-key-theme))
 
 (use-package olivetti
   :ensure t)
