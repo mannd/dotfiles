@@ -62,8 +62,6 @@
 (setq global-auto-revert-non-file-buffers t)
 (global-auto-revert-mode 1)
 
-(set-frame-font "Aporetic Sans Mono-18" nil t)
-
 (use-package modus-themes
   :ensure t)
 
@@ -78,6 +76,26 @@
   :demand t
   :config
   (load-theme 'standard-light-tinted t)) ; preferred theme at the moment
+
+(set-face-attribute 'default nil
+		    :family "Aporetic Sans Mono"
+		    :height 180)
+
+(set-face-attribute 'variable-pitch nil
+		    :family "Aporetic Sans")
+
+(set-face-attribute 'fixed-pitch nil
+		    :family "Aporetic Sans Mono")
+
+;; Use variable pitch as a default for text-derived modes.
+(add-hook 'text-mode-hook #'variable-pitch-mode)
+
+;; Ensure org code blocks use fixed-pitch.
+(with-eval-after-load 'org
+  (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-verbatim nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-table nil :inherit 'fixed-pitch))
 
 ;; Smooth trackpad scrolling.
 (pixel-scroll-precision-mode 1)

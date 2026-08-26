@@ -8,11 +8,11 @@ To produce the Emacs Lisp configuration files, the code blocks must be tangled u
 
 My philosophy is to only install what I am currently using.  I have a strong bias for built-in Emacs functionality.  When using packages, I prefer GNU ELPA packages, followed by NonGNU ELPA, and finally MELPA.  I have cut out a lot of eye-candy and fluff.  The resulting configuration is minimalist, which I find pleasing.
 
-I will write up the details of how I converted from my old configuration to this new one in a blog post.
+More on how I converted from my old configuration to this new one can be found [[https://www.epstudiossoftware.com/ai-and-emacs-bankruptcy/][in this blog post]].
 
 Here is a comparison of the startup time of my new configuration versus the old one, using =M-x emacs-init-time=:
-    Old configuration: 6.265956 seconds
-    New configuration: 1.599190 seconds
+    - Old configuration: 6.265956 seconds
+    - New configuration: 1.599190 seconds
 
 * Installation
 This configuration uses the default file locations for each package.  I have set up my macOS system and my Windows system running under Parallels to use identical file paths, by providing symbolic links in Windows to the macOS file system.
@@ -250,14 +250,6 @@ Ensure that file changes and directory changes made by external applications are
   (global-auto-revert-mode 1)
 #+end_src
 
-** Font
-I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Aporetic Sans Mono/ and like it.  It is present on both my macOS and Windows systems.
-
-#+begin_src emacs-lisp :tangle "init.el"
-  (set-frame-font "Aporetic Sans Mono-18" nil t)
-
-#+end_src
-
 ** Theme
 I think I like the Doric themes the best, but for the moment we will startup with Prot's standard-themes.
 
@@ -276,6 +268,31 @@ I think I like the Doric themes the best, but for the moment we will startup wit
     :demand t
     :config
     (load-theme 'standard-light-tinted t)) ; preferred theme at the moment
+#+end_src
+
+** Font
+I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Aporetic Sans/ and like it.  It is present on both my macOS and Windows systems.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (set-face-attribute 'default nil
+  		    :family "Aporetic Sans Mono"
+  		    :height 180)
+
+  (set-face-attribute 'variable-pitch nil
+  		    :family "Aporetic Sans")
+
+  (set-face-attribute 'fixed-pitch nil
+  		    :family "Aporetic Sans Mono")
+
+  ;; Use variable pitch as a default for text-derived modes.
+  (add-hook 'text-mode-hook #'variable-pitch-mode)
+
+  ;; Ensure org code blocks use fixed-pitch.
+  (with-eval-after-load 'org
+    (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
+    (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
+    (set-face-attribute 'org-verbatim nil :inherit 'fixed-pitch)
+    (set-face-attribute 'org-table nil :inherit 'fixed-pitch))
 #+end_src
 
 ** Mouse
