@@ -78,14 +78,14 @@
   (load-theme 'standard-light-tinted t)) ; preferred theme at the moment
 
 (set-face-attribute 'default nil
-		    :family "Aporetic Sans Mono"
+		    :family "Aporetic Serif Mono"
 		    :height 180)
 
 (set-face-attribute 'variable-pitch nil
-		    :family "Aporetic Sans")
+		    :family "Aporetic Serif")
 
 (set-face-attribute 'fixed-pitch nil
-		    :family "Aporetic Sans Mono")
+		    :family "Aporetic Serif Mono")
 
 ;; Use variable pitch as a default for text-derived modes.
 (add-hook 'text-mode-hook #'variable-pitch-mode)

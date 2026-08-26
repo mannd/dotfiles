@@ -271,18 +271,18 @@ I think I like the Doric themes the best, but for the moment we will startup wit
 #+end_src
 
 ** Font
-I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Aporetic Sans/ and like it.  It is present on both my macOS and Windows systems.
+I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Aporetic/ and like it.  It is present on both my macOS and Windows systems.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (set-face-attribute 'default nil
-  		    :family "Aporetic Sans Mono"
+  		    :family "Aporetic Serif Mono"
   		    :height 180)
 
   (set-face-attribute 'variable-pitch nil
-  		    :family "Aporetic Sans")
+  		    :family "Aporetic Serif")
 
   (set-face-attribute 'fixed-pitch nil
-  		    :family "Aporetic Sans Mono")
+  		    :family "Aporetic Serif Mono")
 
   ;; Use variable pitch as a default for text-derived modes.
   (add-hook 'text-mode-hook #'variable-pitch-mode)
