@@ -33,6 +33,10 @@
 
 (make-directory dem-cache-directory t)
 
+;; Put the network security manager files in the var/ directory
+(setq nsm-settings-file
+      (expand-file-name "network-security.eld" dem-var-directory))
+
 ;; Create auto-save-list directory
 (let ((dir (expand-file-name "auto-save-list/" dem-var-directory)))
   (make-directory dir t)

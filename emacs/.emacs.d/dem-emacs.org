@@ -115,6 +115,15 @@ Some initial Emacs frame setup, including frame size.
   (make-directory dem-cache-directory t)
 #+end_src
 
+** Network security manager files
+Put the generated =network-security.eld= in the =var/= directory.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  ;; Put the network security manager files in the var/ directory
+  (setq nsm-settings-file
+        (expand-file-name "network-security.eld" dem-var-directory))
+#+end_src
+
 ** Auto-save-list
 Put auto-save-list in the =var/= directory.
 
@@ -292,7 +301,12 @@ I have used /Source Code Pro/ in the past, but recently I have tried Prot's /Apo
     (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
     (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
     (set-face-attribute 'org-verbatim nil :inherit 'fixed-pitch)
+    (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
     (set-face-attribute 'org-table nil :inherit 'fixed-pitch))
+
+  ;; Ledger mode needs fixed-pitch.
+  (add-hook 'ledger-mode-hook (lambda () (variable-pitch-mode -1)))
+    
 #+end_src
 
 ** Mouse
@@ -470,6 +484,7 @@ Since =~/org/= is the default value of =org-directory=, there is no need for pla
             "home.org"
             "epstudios.org"
             "family.org"
+  	  "travel.org"
             "org.org"))
     (setq org-todo-keywords
           '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!)")
@@ -826,7 +841,100 @@ I am working through the Scheme code in the book /Structure and Interpretation o
     :ensure t)
 #+end_src
 
+** Email configuration
+After some struggles, I ended up using Notmuch along with Lieer to handle my Gmail in Emacs.  Lieer synchronizes all the Gmail labels with Notmuch tags.  It automates procedures like deleting mail by applying a "trash" tag that Gmail uses to put the mail in the Gmail trash, eventually to be deleted.  The initial sync took a while, but update syncs are very rapid.
+
+I have separated out the public from the private parts of my email configuration by using some variables that are later assigned in =private.el=.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Define private variables that will be updated with real values in private.el.
+  (defvar dem-mail-smtp-user nil)
+  (defvar dem-mail-smtp-server nil)
+  (defvar dem-mail-smtp-service nil)
+  (defvar dem-mail-gmi-program nil)
+  (defvar dem-mail-gmail-directory nil)
+#+end_src
+
+I use =smtp.gmail.com= to send mail.  This part will need to be added to when I set up my business email.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package smtpmail
+    :ensure nil
+    :config
+    (setq message-send-mail-function #'message-smtpmail-send-it
+          smtpmail-smtp-server dem-mail-smtp-server
+          smtpmail-smtp-service dem-mail-smtp-service
+          smtpmail-stream-type 'starttls
+          smtpmail-smtp-user dem-mail-smtp-user
+          smtpmail-servers-requiring-authorization
+          "smtp\\.gmail\\.com"))
+#+end_src
+
+Notmuch does everything with tags.  To delete an email, the trash tag must be added and the inbox tag and new tag removed.  Gmail handles the actual deletion.  I also redefine the =G= key to synchronize with the Gmail Imap server, by calling the =dem-mail-gmi-program= which does a ~gmi sync~.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package notmuch
+    :ensure nil
+    :config
+    (setq notmuch-address-command 'internal
+          notmuch-address-internal-completion '(sent nil)
+          notmuch-fcc-dirs nil)
+
+    (defun dem-notmuch-trash-message ()
+      "Trash the current message using Gmail/Lieer tags."
+      (interactive)
+      (notmuch-tree-tag '("+trash" "-inbox" "-new"))
+      (forward-line))
+
+    (defun dem-notmuch-search-trash-thread ()
+      "Trash the selected thread using Gmail/Lieer tags."
+      (interactive)
+      (notmuch-search-tag '("+trash" "-inbox" "-new"))
+      (notmuch-search-next-thread))
+
+    (defun dem-notmuch-show-trash-message ()
+      "Trash the current message using Gmail/Lieer tags."
+      (interactive)
+      (notmuch-show-tag '("+trash" "-inbox" "-new"))
+      (notmuch-show-next-open-message))
+
+    (defun dem-notmuch-lieer-sync ()
+      "Synchronize Gmail with Lieer and refresh Notmuch."
+      (interactive)
+      (let ((default-directory
+             (expand-file-name dem-mail-gmail-directory))
+            (buffer (get-buffer-create "*lieer-sync*")))
+        (with-current-buffer buffer
+          (erase-buffer))
+        (message "Syncing Gmail with Lieer...")
+        (if (zerop
+             (call-process dem-mail-gmi-program nil buffer t "sync"))
+            (progn
+              (notmuch-refresh-this-buffer)
+              (message "Gmail sync complete"))
+          (message "Lieer sync failed; see *lieer-sync*"))))
+
+    :bind
+    (:map notmuch-show-mode-map
+          ("d" . dem-notmuch-show-trash-message)
+  	:map notmuch-search-mode-map
+          ("d" . dem-notmuch-search-trash-thread)
+  	:map notmuch-tree-mode-map
+          ("d" . dem-notmuch-trash-message)
+  	:map notmuch-common-keymap
+          ("G" . dem-notmuch-lieer-sync)))
+#+end_src
+
+Ol-Notmuch alls the creation of links to emails using =C-c l=.  This is one of the great benefits of email on Emacs.  I can in org-mode just link an email to a task or as a reference.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package ol-notmuch
+    :ensure t)
+#+end_src
+
+
 ** Load private configuration
+The =private.el= file just contains variables specific to my configuration that are of no use to anyone else.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (load (expand-file-name "private/private.el" user-emacs-directory)

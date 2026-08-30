@@ -95,7 +95,11 @@
   (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
   (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
   (set-face-attribute 'org-verbatim nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
   (set-face-attribute 'org-table nil :inherit 'fixed-pitch))
+
+;; Ledger mode needs fixed-pitch.
+(add-hook 'ledger-mode-hook (lambda () (variable-pitch-mode -1)))
 
 ;; Smooth trackpad scrolling.
 (pixel-scroll-precision-mode 1)
@@ -227,6 +231,7 @@
           "home.org"
           "epstudios.org"
           "family.org"
+	  "travel.org"
           "org.org"))
   (setq org-todo-keywords
         '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!)")
@@ -474,6 +479,78 @@
   :ensure t)
 
 (use-package geiser-racket
+  :ensure t)
+
+;; Define private variables that will be updated with real values in private.el.
+(defvar dem-mail-smtp-user nil)
+(defvar dem-mail-smtp-server nil)
+(defvar dem-mail-smtp-service nil)
+(defvar dem-mail-gmi-program nil)
+(defvar dem-mail-gmail-directory nil)
+
+(use-package smtpmail
+  :ensure nil
+  :config
+  (setq message-send-mail-function #'message-smtpmail-send-it
+        smtpmail-smtp-server dem-mail-smtp-server
+        smtpmail-smtp-service dem-mail-smtp-service
+        smtpmail-stream-type 'starttls
+        smtpmail-smtp-user dem-mail-smtp-user
+        smtpmail-servers-requiring-authorization
+        "smtp\\.gmail\\.com"))
+
+(use-package notmuch
+  :ensure nil
+  :config
+  (setq notmuch-address-command 'internal
+        notmuch-address-internal-completion '(sent nil)
+        notmuch-fcc-dirs nil)
+
+  (defun dem-notmuch-trash-message ()
+    "Trash the current message using Gmail/Lieer tags."
+    (interactive)
+    (notmuch-tree-tag '("+trash" "-inbox" "-new"))
+    (forward-line))
+
+  (defun dem-notmuch-search-trash-thread ()
+    "Trash the selected thread using Gmail/Lieer tags."
+    (interactive)
+    (notmuch-search-tag '("+trash" "-inbox" "-new"))
+    (notmuch-search-next-thread))
+
+  (defun dem-notmuch-show-trash-message ()
+    "Trash the current message using Gmail/Lieer tags."
+    (interactive)
+    (notmuch-show-tag '("+trash" "-inbox" "-new"))
+    (notmuch-show-next-open-message))
+
+  (defun dem-notmuch-lieer-sync ()
+    "Synchronize Gmail with Lieer and refresh Notmuch."
+    (interactive)
+    (let ((default-directory
+           (expand-file-name dem-mail-gmail-directory))
+          (buffer (get-buffer-create "*lieer-sync*")))
+      (with-current-buffer buffer
+        (erase-buffer))
+      (message "Syncing Gmail with Lieer...")
+      (if (zerop
+           (call-process dem-mail-gmi-program nil buffer t "sync"))
+          (progn
+            (notmuch-refresh-this-buffer)
+            (message "Gmail sync complete"))
+        (message "Lieer sync failed; see *lieer-sync*"))))
+
+  :bind
+  (:map notmuch-show-mode-map
+        ("d" . dem-notmuch-show-trash-message)
+	:map notmuch-search-mode-map
+        ("d" . dem-notmuch-search-trash-thread)
+	:map notmuch-tree-mode-map
+        ("d" . dem-notmuch-trash-message)
+	:map notmuch-common-keymap
+        ("G" . dem-notmuch-lieer-sync)))
+
+(use-package ol-notmuch
   :ensure t)
 
 (load (expand-file-name "private/private.el" user-emacs-directory)
