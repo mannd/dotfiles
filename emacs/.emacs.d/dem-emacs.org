@@ -841,21 +841,38 @@ I am working through the Scheme code in the book /Structure and Interpretation o
     :ensure t)
 #+end_src
 
-** Email configuration
-After some struggles, I ended up using Notmuch along with Lieer to handle my Gmail in Emacs.  Lieer synchronizes all the Gmail labels with Notmuch tags.  It automates procedures like deleting mail by applying a "trash" tag that Gmail uses to put the mail in the Gmail trash, eventually to be deleted.  The initial sync took a while, but update syncs are very rapid.
+** Email
+NB: This is a work in progress.  I have two email accounts, a Gmail account and a business account (https://epstudiossoftware.com).  They are both IMAP accounts, but Gmail is known for its flaky IMAP implementation.  After struggling with a custom Gmail setup, I decided not to reinvent the wheel and went with [[https://github.com/gauteh/lieer][Lieer]].  For my EP Studios account I use =mbsync=.  Notmuch is the front-end for presenting and manipulating email in Emacs.  I am still fine-tuning all this.
 
-I have separated out the public from the private parts of my email configuration by using some variables that are later assigned in =private.el=.
+*** Email variables
+These variables are given my own private values in my local =private.el= file.  
+The =private.el= file just contains variables specific to my configuration that are of no use to anyone else.
 
 #+begin_src emacs-lisp :tangle "init.el"
-  ;; Define private variables that will be updated with real values in private.el.
+  ;; Define private variables that are updated with real values in private.el.
   (defvar dem-mail-smtp-user nil)
   (defvar dem-mail-smtp-server nil)
   (defvar dem-mail-smtp-service nil)
+
+  ;; The gmi program is provided by Lieer and is for Gmail.
   (defvar dem-mail-gmi-program nil)
   (defvar dem-mail-gmail-directory nil)
+
+  ;; The mbsync program is for my EP Studios mail.
+  (defvar dem-mail-mbsync-program nil)
+  (defvar dem-mail-epstudios-directory nil)
+  (defvar dem-mail-epstudios-channel nil)
 #+end_src
 
-I use =smtp.gmail.com= to send mail.  This part will need to be added to when I set up my business email.
+The =private.el= file has to be loaded first before email is set up so that the variables above are not nil.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (load (expand-file-name "private/private.el" user-emacs-directory)
+      'noerror)
+#+end_src
+
+*** Email configuration
+I use =smtp.gmail.com= to send mail.  This part will need to be added to when I set up my business email.  Right now all the mail sent vial Gmail.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package smtpmail
@@ -870,7 +887,11 @@ I use =smtp.gmail.com= to send mail.  This part will need to be added to when I 
           "smtp\\.gmail\\.com"))
 #+end_src
 
-Notmuch does everything with tags.  To delete an email, the trash tag must be added and the inbox tag and new tag removed.  Gmail handles the actual deletion.  I also redefine the =G= key to synchronize with the Gmail Imap server, by calling the =dem-mail-gmi-program= which does a ~gmi sync~.
+Notmuch does everything with tags.  To delete an email, the trash tag must be added and the inbox tag and new tag removed.  Gmail handles the actual deletion.
+
+For my EP Studios email, the trash tag is not enough.  The email is moved to the Trash folder and its ID is changed, in order for the webmail server to actually put in the Trash and eventually delete it.
+
+I also redefine the =G= key to sync both Gmail and EP Studios mail.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package notmuch
@@ -880,66 +901,118 @@ Notmuch does everything with tags.  To delete an email, the trash tag must be ad
           notmuch-address-internal-completion '(sent nil)
           notmuch-fcc-dirs nil)
 
-    (defun dem-notmuch-trash-message ()
-      "Trash the current message using Gmail/Lieer tags."
+    (defun dem-notmuch-move-epstudios-trash ()
+      "Move EP Studios messages tagged `trash' into its Trash Maildir.
+  Messages already in Trash are ignored.  Files are given fresh
+  Maildir names so mbsync recognizes them as new messages in Trash."
+      (let* ((query
+              "tag:trash and path:account.epstudios/** \
+  and not folder:account.epstudios/Trash")
+             (files
+              (process-lines
+               notmuch-command
+               "search"
+               "--output=files"
+               query))
+             (trash-directory
+              (expand-file-name
+               "Trash/cur/"
+               dem-mail-epstudios-directory)))
+
+        (make-directory trash-directory t)
+
+        (dolist (file files)
+  	(when (file-exists-p file)
+            (let* ((flags
+                    (if (string-match ":2,\\([^/]*\\)\\'" file)
+                        (match-string 1 file)
+                      ""))
+  		 (new-name
+                    (format "%d.%d.%d.%s:2,%s"
+                            (truncate (* (float-time) 1000000))
+                            (emacs-pid)
+                            (random 1000000)
+                            (system-name)
+                            flags)))
+              (rename-file
+               file
+               (expand-file-name new-name trash-directory)))))))
+
+    (defun dem-notmuch-tree-trash-message ()
+      "Trash the current message."
       (interactive)
       (notmuch-tree-tag '("+trash" "-inbox" "-new"))
+      (dem-notmuch-move-epstudios-trash)
       (forward-line))
 
     (defun dem-notmuch-search-trash-thread ()
-      "Trash the selected thread using Gmail/Lieer tags."
+      "Trash the selected thread."
       (interactive)
       (notmuch-search-tag '("+trash" "-inbox" "-new"))
+      (dem-notmuch-move-epstudios-trash)
       (notmuch-search-next-thread))
 
     (defun dem-notmuch-show-trash-message ()
-      "Trash the current message using Gmail/Lieer tags."
+      "Trash the current message."
       (interactive)
       (notmuch-show-tag '("+trash" "-inbox" "-new"))
+      (dem-notmuch-move-epstudios-trash)
       (notmuch-show-next-open-message))
 
-    (defun dem-notmuch-lieer-sync ()
-      "Synchronize Gmail with Lieer and refresh Notmuch."
+    (defun dem-notmuch-sync ()
+      "Synchronize all mail accounts and refresh Notmuch."
       (interactive)
-      (let ((default-directory
-             (expand-file-name dem-mail-gmail-directory))
-            (buffer (get-buffer-create "*lieer-sync*")))
+      (let ((buffer (get-buffer-create "*mail-sync*"))
+            gmail-status
+            epstudios-status
+            notmuch-status)
+
         (with-current-buffer buffer
           (erase-buffer))
-        (message "Syncing Gmail with Lieer...")
-        (if (zerop
-             (call-process dem-mail-gmi-program nil buffer t "sync"))
-            (progn
-              (notmuch-refresh-this-buffer)
-              (message "Gmail sync complete"))
-          (message "Lieer sync failed; see *lieer-sync*"))))
+
+        (message "Syncing Gmail...")
+        (let ((default-directory
+               (expand-file-name dem-mail-gmail-directory)))
+          (setq gmail-status
+                (call-process
+                 dem-mail-gmi-program nil buffer t "sync")))
+
+        (message "Syncing EP Studios mail...")
+        (setq epstudios-status
+              (call-process
+               dem-mail-mbsync-program nil buffer t
+               dem-mail-epstudios-channel))
+
+        (message "Updating Notmuch...")
+        (setq notmuch-status
+              (call-process
+               notmuch-command nil buffer t "new"))
+
+        (notmuch-refresh-this-buffer)
+
+        (if (and (zerop gmail-status)
+                 (zerop epstudios-status)
+                 (zerop notmuch-status))
+            (message "Mail synchronization complete")
+          (message
+           "Mail sync completed with errors; see *mail-sync*"))))
 
     :bind
     (:map notmuch-show-mode-map
           ("d" . dem-notmuch-show-trash-message)
   	:map notmuch-search-mode-map
-          ("d" . dem-notmuch-search-trash-thread)
+          ("d"  . dem-notmuch-search-trash-thread)
   	:map notmuch-tree-mode-map
-          ("d" . dem-notmuch-trash-message)
+          ("d" . dem-notmuch-tree-trash-message)
   	:map notmuch-common-keymap
-          ("G" . dem-notmuch-lieer-sync)))
+          ("G" . dem-notmuch-sync)))
 #+end_src
 
-Ol-Notmuch alls the creation of links to emails using =C-c l=.  This is one of the great benefits of email on Emacs.  I can in org-mode just link an email to a task or as a reference.
+Ol-Notmuch allows the creation of links to emails using =C-c l=.  This is one of the great benefits of email on Emacs.  I can in org-mode just link an email to a task or as a reference.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package ol-notmuch
     :ensure t)
 #+end_src
-
-
-** Load private configuration
-The =private.el= file just contains variables specific to my configuration that are of no use to anyone else.
-
-#+begin_src emacs-lisp :tangle "init.el"
-  (load (expand-file-name "private/private.el" user-emacs-directory)
-      'noerror)
-#+end_src
-
 
 

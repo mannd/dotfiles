@@ -481,12 +481,22 @@
 (use-package geiser-racket
   :ensure t)
 
-;; Define private variables that will be updated with real values in private.el.
+;; Define private variables that are updated with real values in private.el.
 (defvar dem-mail-smtp-user nil)
 (defvar dem-mail-smtp-server nil)
 (defvar dem-mail-smtp-service nil)
+
+;; The gmi program is provided by Lieer and is for Gmail.
 (defvar dem-mail-gmi-program nil)
 (defvar dem-mail-gmail-directory nil)
+
+;; The mbsync program is for my EP Studios mail.
+(defvar dem-mail-mbsync-program nil)
+(defvar dem-mail-epstudios-directory nil)
+(defvar dem-mail-epstudios-channel nil)
+
+(load (expand-file-name "private/private.el" user-emacs-directory)
+    'noerror)
 
 (use-package smtpmail
   :ensure nil
@@ -506,52 +516,111 @@
         notmuch-address-internal-completion '(sent nil)
         notmuch-fcc-dirs nil)
 
-  (defun dem-notmuch-trash-message ()
-    "Trash the current message using Gmail/Lieer tags."
+  (defun dem-notmuch-move-epstudios-trash ()
+    "Move EP Studios messages tagged `trash' into its Trash Maildir.
+Messages already in Trash are ignored.  Files are given fresh
+Maildir names so mbsync recognizes them as new messages in Trash."
+    (let* ((query
+            "tag:trash and path:account.epstudios/** \
+and not folder:account.epstudios/Trash")
+           (files
+            (process-lines
+             notmuch-command
+             "search"
+             "--output=files"
+             query))
+           (trash-directory
+            (expand-file-name
+             "Trash/cur/"
+             dem-mail-epstudios-directory)))
+
+      (make-directory trash-directory t)
+
+      (dolist (file files)
+	(when (file-exists-p file)
+          (let* ((flags
+                  (if (string-match ":2,\\([^/]*\\)\\'" file)
+                      (match-string 1 file)
+                    ""))
+		 (new-name
+                  (format "%d.%d.%d.%s:2,%s"
+                          (truncate (* (float-time) 1000000))
+                          (emacs-pid)
+                          (random 1000000)
+                          (system-name)
+                          flags)))
+            (rename-file
+             file
+             (expand-file-name new-name trash-directory)))))))
+
+  (defun dem-notmuch-tree-trash-message ()
+    "Trash the current message."
     (interactive)
     (notmuch-tree-tag '("+trash" "-inbox" "-new"))
+    (dem-notmuch-move-epstudios-trash)
     (forward-line))
 
   (defun dem-notmuch-search-trash-thread ()
-    "Trash the selected thread using Gmail/Lieer tags."
+    "Trash the selected thread."
     (interactive)
     (notmuch-search-tag '("+trash" "-inbox" "-new"))
+    (dem-notmuch-move-epstudios-trash)
     (notmuch-search-next-thread))
 
   (defun dem-notmuch-show-trash-message ()
-    "Trash the current message using Gmail/Lieer tags."
+    "Trash the current message."
     (interactive)
     (notmuch-show-tag '("+trash" "-inbox" "-new"))
+    (dem-notmuch-move-epstudios-trash)
     (notmuch-show-next-open-message))
 
-  (defun dem-notmuch-lieer-sync ()
-    "Synchronize Gmail with Lieer and refresh Notmuch."
+  (defun dem-notmuch-sync ()
+    "Synchronize all mail accounts and refresh Notmuch."
     (interactive)
-    (let ((default-directory
-           (expand-file-name dem-mail-gmail-directory))
-          (buffer (get-buffer-create "*lieer-sync*")))
+    (let ((buffer (get-buffer-create "*mail-sync*"))
+          gmail-status
+          epstudios-status
+          notmuch-status)
+
       (with-current-buffer buffer
         (erase-buffer))
-      (message "Syncing Gmail with Lieer...")
-      (if (zerop
-           (call-process dem-mail-gmi-program nil buffer t "sync"))
-          (progn
-            (notmuch-refresh-this-buffer)
-            (message "Gmail sync complete"))
-        (message "Lieer sync failed; see *lieer-sync*"))))
+
+      (message "Syncing Gmail...")
+      (let ((default-directory
+             (expand-file-name dem-mail-gmail-directory)))
+        (setq gmail-status
+              (call-process
+               dem-mail-gmi-program nil buffer t "sync")))
+
+      (message "Syncing EP Studios mail...")
+      (setq epstudios-status
+            (call-process
+             dem-mail-mbsync-program nil buffer t
+             dem-mail-epstudios-channel))
+
+      (message "Updating Notmuch...")
+      (setq notmuch-status
+            (call-process
+             notmuch-command nil buffer t "new"))
+
+      (notmuch-refresh-this-buffer)
+
+      (if (and (zerop gmail-status)
+               (zerop epstudios-status)
+               (zerop notmuch-status))
+          (message "Mail synchronization complete")
+        (message
+         "Mail sync completed with errors; see *mail-sync*"))))
 
   :bind
   (:map notmuch-show-mode-map
         ("d" . dem-notmuch-show-trash-message)
 	:map notmuch-search-mode-map
-        ("d" . dem-notmuch-search-trash-thread)
+        ("d"  . dem-notmuch-search-trash-thread)
 	:map notmuch-tree-mode-map
-        ("d" . dem-notmuch-trash-message)
+        ("d" . dem-notmuch-tree-trash-message)
 	:map notmuch-common-keymap
-        ("G" . dem-notmuch-lieer-sync)))
+        ("G" . dem-notmuch-sync)))
 
 (use-package ol-notmuch
   :ensure t)
-
-(load (expand-file-name "private/private.el" user-emacs-directory)
-    'noerror)
