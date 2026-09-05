@@ -481,10 +481,19 @@
 (use-package geiser-racket
   :ensure t)
 
-;; Define private variables that are updated with real values in private.el.
+;; Define private variables that are updated
+;; with real values in private.el.
+
+;; Variables for Gmail.
 (defvar dem-mail-smtp-user nil)
 (defvar dem-mail-smtp-server nil)
 (defvar dem-mail-smtp-service nil)
+
+;; Variables for EP Studios.
+(defvar dem-mail-epstudios-address nil)
+(defvar dem-mail-epstudios-smtp-user nil)
+(defvar dem-mail-epstudios-smtp-server nil)
+(defvar dem-mail-epstudios-smtp-service nil)
 
 ;; The gmi program is provided by Lieer and is for Gmail.
 (defvar dem-mail-gmi-program nil)
@@ -501,13 +510,32 @@
 (use-package smtpmail
   :ensure nil
   :config
-  (setq message-send-mail-function #'message-smtpmail-send-it
-        smtpmail-smtp-server dem-mail-smtp-server
-        smtpmail-smtp-service dem-mail-smtp-service
-        smtpmail-stream-type 'starttls
-        smtpmail-smtp-user dem-mail-smtp-user
-        smtpmail-servers-requiring-authorization
-        "smtp\\.gmail\\.com"))
+  (defun dem-mail-send ()
+    "Send mail through the SMTP server appropriate for the From address."
+    (let ((from (message-fetch-field "from")))
+      (if (and from
+               (string-match-p
+                (regexp-quote dem-mail-epstudios-address)
+                from))
+          ;; EP Studios / DreamHost
+          (let ((smtpmail-smtp-server dem-mail-epstudios-smtp-server)
+                (smtpmail-smtp-service dem-mail-epstudios-smtp-service)
+                (smtpmail-smtp-user dem-mail-epstudios-smtp-user)
+                (smtpmail-stream-type 'starttls))
+            (message-smtpmail-send-it))
+
+        ;; Gmail
+        (let ((smtpmail-smtp-server dem-mail-smtp-server)
+              (smtpmail-smtp-service dem-mail-smtp-service)
+              (smtpmail-smtp-user dem-mail-smtp-user)
+              (smtpmail-stream-type 'starttls))
+          (message-smtpmail-send-it)))))
+
+
+    (setq send-mail-function #'smtpmail-send-it
+      message-send-mail-function #'dem-mail-send
+      smtpmail-servers-requiring-authorization
+      "\\(?:smtp\\.gmail\\.com\\|smtp\\.dreamhost\\.com\\)"))
 
 (use-package notmuch
   :ensure nil

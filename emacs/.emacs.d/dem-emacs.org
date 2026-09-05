@@ -842,17 +842,26 @@ I am working through the Scheme code in the book /Structure and Interpretation o
 #+end_src
 
 ** Email
-NB: This is a work in progress.  I have two email accounts, a Gmail account and a business account (https://epstudiossoftware.com).  They are both IMAP accounts, but Gmail is known for its flaky IMAP implementation.  After struggling with a custom Gmail setup, I decided not to reinvent the wheel and went with [[https://github.com/gauteh/lieer][Lieer]].  For my EP Studios account I use =mbsync=.  Notmuch is the front-end for presenting and manipulating email in Emacs.  I am still fine-tuning all this.
+NB: This is a work in progress.  I have two email accounts, a Gmail account and a business account (https://epstudiossoftware.com).  They are both IMAP accounts, but Gmail is known for its +flaky+ creative IMAP implementation.  After struggling with a custom Gmail setup, I decided not to reinvent the wheel and went with [[https://github.com/gauteh/lieer][Lieer]].  For my EP Studios account I use =mbsync=.  Notmuch is the front-end for presenting and manipulating email in Emacs.  I am still fine-tuning all this.
 
 *** Email variables
 These variables are given my own private values in my local =private.el= file.  
 The =private.el= file just contains variables specific to my configuration that are of no use to anyone else.
 
 #+begin_src emacs-lisp :tangle "init.el"
-  ;; Define private variables that are updated with real values in private.el.
+  ;; Define private variables that are updated
+  ;; with real values in private.el.
+
+  ;; Variables for Gmail.
   (defvar dem-mail-smtp-user nil)
   (defvar dem-mail-smtp-server nil)
   (defvar dem-mail-smtp-service nil)
+
+  ;; Variables for EP Studios.
+  (defvar dem-mail-epstudios-address nil)
+  (defvar dem-mail-epstudios-smtp-user nil)
+  (defvar dem-mail-epstudios-smtp-server nil)
+  (defvar dem-mail-epstudios-smtp-service nil)
 
   ;; The gmi program is provided by Lieer and is for Gmail.
   (defvar dem-mail-gmi-program nil)
@@ -878,13 +887,33 @@ I use =smtp.gmail.com= to send mail.  This part will need to be added to when I 
   (use-package smtpmail
     :ensure nil
     :config
-    (setq message-send-mail-function #'message-smtpmail-send-it
-          smtpmail-smtp-server dem-mail-smtp-server
-          smtpmail-smtp-service dem-mail-smtp-service
-          smtpmail-stream-type 'starttls
-          smtpmail-smtp-user dem-mail-smtp-user
-          smtpmail-servers-requiring-authorization
-          "smtp\\.gmail\\.com"))
+    (defun dem-mail-send ()
+      "Send mail through the SMTP server appropriate for the From address."
+      (let ((from (message-fetch-field "from")))
+        (if (and from
+                 (string-match-p
+                  (regexp-quote dem-mail-epstudios-address)
+                  from))
+            ;; EP Studios / DreamHost
+            (let ((smtpmail-smtp-server dem-mail-epstudios-smtp-server)
+                  (smtpmail-smtp-service dem-mail-epstudios-smtp-service)
+                  (smtpmail-smtp-user dem-mail-epstudios-smtp-user)
+                  (smtpmail-stream-type 'starttls))
+              (message-smtpmail-send-it))
+
+          ;; Gmail
+          (let ((smtpmail-smtp-server dem-mail-smtp-server)
+                (smtpmail-smtp-service dem-mail-smtp-service)
+                (smtpmail-smtp-user dem-mail-smtp-user)
+                (smtpmail-stream-type 'starttls))
+            (message-smtpmail-send-it)))))
+
+
+      (setq send-mail-function #'smtpmail-send-it
+        message-send-mail-function #'dem-mail-send
+        smtpmail-servers-requiring-authorization
+        "\\(?:smtp\\.gmail\\.com\\|smtp\\.dreamhost\\.com\\)"))
+
 #+end_src
 
 Notmuch does everything with tags.  To delete an email, the trash tag must be added and the inbox tag and new tag removed.  Gmail handles the actual deletion.
@@ -1008,7 +1037,7 @@ I also redefine the =G= key to sync both Gmail and EP Studios mail.
           ("G" . dem-notmuch-sync)))
 #+end_src
 
-Ol-Notmuch allows the creation of links to emails using =C-c l=.  This is one of the great benefits of email on Emacs.  I can in org-mode just link an email to a task or as a reference.
+Ol-Notmuch allows the creation of links to emails using =C-c l=.  This is one of the great benefits of email in Emacs.  In org-mode I can just link an email to a task.
 
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package ol-notmuch
