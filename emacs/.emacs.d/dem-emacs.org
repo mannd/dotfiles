@@ -930,6 +930,10 @@ I also redefine the =G= key to sync both Gmail and EP Studios mail.
           notmuch-address-internal-completion '(sent nil)
           notmuch-fcc-dirs nil)
 
+    (defun dem-notmuch-disable-corfu ()
+      "Disable Corfu in Notmuch message composition buffers."
+      (corfu-mode -1))
+
     (defun dem-notmuch-move-epstudios-trash ()
       "Move EP Studios messages tagged `trash' into its Trash Maildir.
   Messages already in Trash are ignored.  Files are given fresh
@@ -1026,6 +1030,9 @@ I also redefine the =G= key to sync both Gmail and EP Studios mail.
           (message
            "Mail sync completed with errors; see *mail-sync*"))))
 
+    :hook
+    (notmuch-message-mode-hook . dem-notmuch-disable-corfu)
+    
     :bind
     (:map notmuch-show-mode-map
           ("d" . dem-notmuch-show-trash-message)

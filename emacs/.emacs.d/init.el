@@ -544,6 +544,10 @@
         notmuch-address-internal-completion '(sent nil)
         notmuch-fcc-dirs nil)
 
+  (defun dem-notmuch-disable-corfu ()
+    "Disable Corfu in Notmuch message composition buffers."
+    (corfu-mode -1))
+
   (defun dem-notmuch-move-epstudios-trash ()
     "Move EP Studios messages tagged `trash' into its Trash Maildir.
 Messages already in Trash are ignored.  Files are given fresh
@@ -640,6 +644,9 @@ and not folder:account.epstudios/Trash")
         (message
          "Mail sync completed with errors; see *mail-sync*"))))
 
+  :hook
+  (notmuch-message-mode-hook . dem-notmuch-disable-corfu)
+  
   :bind
   (:map notmuch-show-mode-map
         ("d" . dem-notmuch-show-trash-message)
