@@ -918,6 +918,8 @@ I use =smtp.gmail.com= to send mail.  This part will need to be added to when I 
 
 Notmuch does everything with tags.  To delete an email, the trash tag must be added and the inbox tag and new tag removed.  Gmail handles the actual deletion.
 
+To move an email in the Inbox to a different folder, I add the appropriate tag corresponding to the folder, such as =Travel/2026= , and then press the =a= key, which archives the email via removing the inbox and new tags.
+
 For my EP Studios email, the trash tag is not enough.  The email is moved to the Trash folder and its ID is changed, in order for the webmail server to actually put in the Trash and eventually delete it.
 
 I also redefine the =G= key to sync both Gmail and EP Studios mail.
@@ -928,7 +930,8 @@ I also redefine the =G= key to sync both Gmail and EP Studios mail.
     :config
     (setq notmuch-address-command 'internal
           notmuch-address-internal-completion '(sent nil)
-          notmuch-fcc-dirs nil)
+          notmuch-fcc-dirs nil
+  	notmuch-archive-tags '("-inbox" "-new"))
 
     (defun dem-notmuch-disable-corfu ()
       "Disable Corfu in Notmuch message composition buffers."

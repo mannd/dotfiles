@@ -542,7 +542,8 @@
   :config
   (setq notmuch-address-command 'internal
         notmuch-address-internal-completion '(sent nil)
-        notmuch-fcc-dirs nil)
+        notmuch-fcc-dirs nil
+	notmuch-archive-tags '("-inbox" "-new"))
 
   (defun dem-notmuch-disable-corfu ()
     "Disable Corfu in Notmuch message composition buffers."
