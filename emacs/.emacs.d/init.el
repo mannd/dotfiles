@@ -297,9 +297,15 @@
   (require 'denote)
   (dired denote-directory))
 
+(defun dem-disable-jinx ()
+  "Disable Jinx in the current buffer."
+  (jinx-mode -1))
+
 (use-package jinx
   :ensure t
-  :hook (text-mode . jinx-mode)
+  :hook
+  ((text-mode . jinx-mode)
+   (ledger-mode . dem-disable-jinx))
   :bind
   (("M-$" . jinx-correct)
    ("C-M-$" . jinx-languages)

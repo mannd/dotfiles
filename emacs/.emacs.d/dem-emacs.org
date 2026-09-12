@@ -578,9 +578,15 @@ The default Denote directory is =~/Documents/notes/=.  This directory exists in 
 I use jinx for spell checking.
 
 #+begin_src emacs-lisp :tangle "init.el"
+  (defun dem-disable-jinx ()
+    "Disable Jinx in the current buffer."
+    (jinx-mode -1))
+
   (use-package jinx
     :ensure t
-    :hook (text-mode . jinx-mode)
+    :hook
+    ((text-mode . jinx-mode)
+     (ledger-mode . dem-disable-jinx))
     :bind
     (("M-$" . jinx-correct)
      ("C-M-$" . jinx-languages)
