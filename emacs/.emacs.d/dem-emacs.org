@@ -707,28 +707,31 @@ I used to use =projectile=, but the built-in package =project= caught up in feat
 Citar is useful for providing references.  I emulate the identical path in Windows of the relevant files using symbolic links.
 
 #+begin_src emacs-lisp :tangle "init.el"
- (use-package citar
-  :ensure t
-  :after org
+  (use-package citar
+   :ensure t
+   :after org
 
-  :custom
-  (org-cite-global-bibliography
-   '("~/Documents/Bibtex/My Library.bib"))
-  (org-cite-csl-styles-dir
-   (expand-file-name "~/Zotero/styles/"))
+   :custom
+   (org-cite-global-bibliography
+    '("~/Documents/Bibtex/My Library.bib"))
+   (org-cite-csl-styles-dir
+    (expand-file-name "~/Zotero/styles/"))
 
-  (org-cite-insert-processor 'citar)
-  (org-cite-follow-processor 'citar)
-  (org-cite-activate-processor 'citar)
+   (org-cite-insert-processor 'citar)
+   (org-cite-follow-processor 'citar)
+   (org-cite-activate-processor 'citar)
 
-  (org-cite-export-processors
-   '((t . (csl "american-medical-association.csl"))))
+   (org-cite-export-processors
+    '((t . (csl "american-medical-association.csl"))))
 
-  (citar-bibliography org-cite-global-bibliography)
+   (citar-bibliography org-cite-global-bibliography)
 
-  :bind
-  (:map org-mode-map
-        ("C-c C-b" . org-cite-insert))) 
+   :config
+   (require 'citar-org)
+
+   :bind
+   (:map org-mode-map
+         ("C-c C-b" . org-cite-insert))) 
 #+end_src
 
 ** Citar-Denote
