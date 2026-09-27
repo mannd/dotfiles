@@ -280,6 +280,49 @@
   :config
   (evil-org-set-key-theme))
 
+(setq org-agenda-custom-commands
+      '(
+      ;; To be developed to be main custom agenda view.
+      ("A" "Test agenda"
+       ((tags-todo "*"
+                   ((org-agenda-overriding-header "Priority projects\n")
+                    (org-agenda-skip-function #'prot-org-agenda-include-priority-no-timestamp))
+                   )
+        (agenda ""
+                ((org-agenda-overriding-header "Standard agenda\n")))))
+      ;; Temporary agenda view to find orphaned tasks.
+      ("D" "Debug"
+       ((tags-todo "*"
+                   ((org-agenda-overriding-header "Orphaned tasks?\n")
+                    (org-agenda-skip-function #'alt-prot-org-agenda-include-priority-no-timestamp)))))
+      ;; Default custom command replicated here.
+      ("n" "Agenda and all TODOs"
+       ((agenda "")
+        (alltodo "")))))
+
+;; This helper function is taken from Prot's config.
+(defun prot-org-agenda-include-priority-no-timestamp ()
+  "Return nil if heading has a priority but no timestamp.
+Otherwise, return the buffer position from where the search should
+continue, per `org-agenda-skip-function'."
+  (let ((point (point)))
+    (if (and (eq (nth 3 (org-heading-components)) ?A)
+             (not (org-get-deadline-time point))
+             (not (org-get-scheduled-time point)))
+        nil
+      (line-beginning-position 2))))
+
+;; A slight modification of the above to find any heading without a timestamp.
+(defun alt-prot-org-agenda-include-priority-no-timestamp ()
+  "Return nil if heading has no timestamp.
+Otherwise, return the buffer position from where the search should
+continue, per `org-agenda-skip-function'."
+  (let ((point (point)))
+    (if (and (not (org-get-deadline-time point))
+             (not (org-get-scheduled-time point)))
+        nil
+      (line-beginning-position 2))))
+
 (use-package olivetti
   :ensure t)
 
@@ -296,6 +339,16 @@
   (interactive)
   (require 'denote)
   (dired denote-directory))
+
+;; Prot written function to find a denote file
+(defun my-denote-find-file ()
+  "Open a file in the variable `denote-directory'."
+  (declare (interactive-only t))
+  (interactive)
+  (when-let* ((file (denote-file-prompt)))
+    (find-file file)))
+
+(define-key global-map (kbd "C-c f") 'my-denote-find-file)
 
 (defun dem-disable-jinx ()
   "Disable Jinx in the current buffer."
@@ -409,6 +462,9 @@
   '((t . (csl "american-medical-association.csl"))))
 
  (citar-bibliography org-cite-global-bibliography)
+
+ :config
+ (require 'citar-org)
 
  :bind
  (:map org-mode-map

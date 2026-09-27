@@ -468,6 +468,8 @@ Note that my org directory =~/org/= is a symbolic link to a Dropbox directory.  
 
 Since =~/org/= is the default value of =org-directory=, there is no need for platform-specific configuration here.
 
+Although I set up the Org agenda here, I am working on a custom agenda which you can find [[*Org agenda][here]].
+
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package org
     :ensure nil
@@ -546,6 +548,66 @@ I don't use all the functionality of Evil-Org, but I do find some of the keybind
     (evil-org-set-key-theme))
 #+end_src
 
+*** Org agenda
+
+🚧 NOTE: This custom agenda is under construction!
+
+Like much of this configuration, I am basing my custom org agenda on [[https://protesilaos.com/codelog/2021-12-09-emacs-org-block-agenda/][the example of Prot]].  However, his particular organization doesn't match mine exactly.  Also, I have been using Org mode for years now and have quite an accumulation of data that is grist for the agenda mill.  Due to inconsistencies in my use of Org mode over time, my tasks are not well categorized.  What I'd like to have is:
+    - Undated tasks :: Tasks I can/should do, but not on any schedule.  Essentially projects.
+    - Tasks with a deadline :: Tasks that must be completed by a deadline.
+    - Scheduled tasks :: Tasks that I need to do at a certain time, or start at a certain time.
+      
+This is roughly in line with what the Org mode manual recommends.  However in practice I have overused scheduled tasks in that I often just schedule a task to start when I create it, so that it constantly appears on the default agenda until I do it.  I have some undated tasks that don't appear in the default agenda view.  I have some tasks with a date that is neither a scheduled or a deadline date.  Those tasks appear the week of their date in the default agenda view, then disappear forever, unlike scheduled or deadline tasks.
+
+So what I'd like to end up with is a division of the agenda view into undated tasks/projects, then probably a week view or a look ahead view of seven days, with maybe a list of lower priority projects at the bottom or in another custom view.  As I haven't been consistently using the priority system in Org mode (#A, #B, #C), I don't think duplicating Prot's setup exactly will work.
+
+For the moment I am implementing a Debug view that will help me identify orphaned tasks and either fix them or archive them.  After that I will work on finishing the customization of the agenda.
+      
+#+begin_src emacs-lisp :tangle "init.el"
+  (setq org-agenda-custom-commands
+        '(
+        ;; To be developed to be main custom agenda view.
+        ("A" "Test agenda"
+         ((tags-todo "*"
+                     ((org-agenda-overriding-header "Priority projects\n")
+                      (org-agenda-skip-function #'prot-org-agenda-include-priority-no-timestamp))
+                     )
+          (agenda ""
+                  ((org-agenda-overriding-header "Standard agenda\n")))))
+        ;; Temporary agenda view to find orphaned tasks.
+        ("D" "Debug"
+         ((tags-todo "*"
+                     ((org-agenda-overriding-header "Orphaned tasks?\n")
+                      (org-agenda-skip-function #'alt-prot-org-agenda-include-priority-no-timestamp)))))
+        ;; Default custom command replicated here.
+        ("n" "Agenda and all TODOs"
+         ((agenda "")
+          (alltodo "")))))
+
+  ;; This helper function is taken from Prot's config.
+  (defun prot-org-agenda-include-priority-no-timestamp ()
+    "Return nil if heading has a priority but no timestamp.
+  Otherwise, return the buffer position from where the search should
+  continue, per `org-agenda-skip-function'."
+    (let ((point (point)))
+      (if (and (eq (nth 3 (org-heading-components)) ?A)
+               (not (org-get-deadline-time point))
+               (not (org-get-scheduled-time point)))
+          nil
+        (line-beginning-position 2))))
+
+  ;; A slight modification of the above to find any heading without a timestamp.
+  (defun alt-prot-org-agenda-include-priority-no-timestamp ()
+    "Return nil if heading has no timestamp.
+  Otherwise, return the buffer position from where the search should
+  continue, per `org-agenda-skip-function'."
+    (let ((point (point)))
+      (if (and (not (org-get-deadline-time point))
+               (not (org-get-scheduled-time point)))
+          nil
+        (line-beginning-position 2))))
+#+end_src
+
 ** Olivetti
 This is a pleasant "no distractions" mode that I use when typing text on full-screen Emacs.
 
@@ -572,6 +634,20 @@ The default Denote directory is =~/Documents/notes/=.  This directory exists in 
     (interactive)
     (require 'denote)
     (dired denote-directory))
+#+end_src
+
+Since I wrote the above, Prot has suggested a function to find a denote file.  See [[https://protesilaos.com/codelog/2026-09-25-emacs-denote-find-file/][Prot's website]].
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;; Prot written function to find a denote file
+  (defun my-denote-find-file ()
+    "Open a file in the variable `denote-directory'."
+    (declare (interactive-only t))
+    (interactive)
+    (when-let* ((file (denote-file-prompt)))
+      (find-file file)))
+
+  (define-key global-map (kbd "C-c f") 'my-denote-find-file)
 #+end_src
 
 ** Spell checking
