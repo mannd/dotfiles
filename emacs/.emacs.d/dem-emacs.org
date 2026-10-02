@@ -567,13 +567,16 @@ For the moment I am implementing a Debug view that will help me identify orphane
   (setq org-agenda-custom-commands
         '(
         ;; To be developed to be main custom agenda view.
-        ("A" "Test agenda"
+        ("A" "Custom agenda"
          ((tags-todo "*"
                      ((org-agenda-overriding-header "Priority projects\n")
+  		    (org-agenda-block-separator nil)
                       (org-agenda-skip-function #'prot-org-agenda-include-priority-no-timestamp))
                      )
           (agenda ""
-                  ((org-agenda-overriding-header "Standard agenda\n")))))
+                  ((org-agenda-span 1)
+  		 (org-agenda-block-separator nil)
+  		 (org-agenda-overriding-header "\nToday's agenda\n")))))
         ;; Temporary agenda view to find orphaned tasks.
         ("D" "Debug"
          ((tags-todo "*"
@@ -786,6 +789,7 @@ Citar is useful for providing references.  I emulate the identical path in Windo
   (use-package citar
    :ensure t
    :after org
+   :demand t
 
    :custom
    (org-cite-global-bibliography
@@ -1118,6 +1122,16 @@ I also redefine the =G= key to sync both Gmail and EP Studios mail.
           (message
            "Mail sync completed with errors; see *mail-sync*"))))
 
+    (defun dem-mail-gmail-force-pull ()
+      "Force a full lieer pull from Gmail, then update notmuch."
+      (interactive)
+      (let ((default-directory dem-mail-gmail-directory))
+        (start-process-shell-command
+         "gmi-force-pull"
+         "*gmi-force-pull*"
+         (format "%s pull -f && notmuch new"
+                 (shell-quote-argument dem-mail-gmi-program)))))
+
     :hook
     (notmuch-message-mode-hook . dem-notmuch-disable-corfu)
     
@@ -1129,7 +1143,9 @@ I also redefine the =G= key to sync both Gmail and EP Studios mail.
   	:map notmuch-tree-mode-map
           ("d" . dem-notmuch-tree-trash-message)
   	:map notmuch-common-keymap
-          ("G" . dem-notmuch-sync)))
+          ("G" . dem-notmuch-sync)
+  	:map notmuch-common-keymap
+  	("C-c G" . dem-mail-gmail-force-pull)))
 #+end_src
 
 Ol-Notmuch allows the creation of links to emails using =C-c l=.  This is one of the great benefits of email in Emacs.  In org-mode I can just link an email to a task.

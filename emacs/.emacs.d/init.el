@@ -283,13 +283,16 @@
 (setq org-agenda-custom-commands
       '(
       ;; To be developed to be main custom agenda view.
-      ("A" "Test agenda"
+      ("A" "Custom agenda"
        ((tags-todo "*"
                    ((org-agenda-overriding-header "Priority projects\n")
+		    (org-agenda-block-separator nil)
                     (org-agenda-skip-function #'prot-org-agenda-include-priority-no-timestamp))
                    )
         (agenda ""
-                ((org-agenda-overriding-header "Standard agenda\n")))))
+                ((org-agenda-span 1)
+		 (org-agenda-block-separator nil)
+		 (org-agenda-overriding-header "\nToday's agenda\n")))))
       ;; Temporary agenda view to find orphaned tasks.
       ("D" "Debug"
        ((tags-todo "*"
@@ -447,6 +450,7 @@ continue, per `org-agenda-skip-function'."
 (use-package citar
  :ensure t
  :after org
+ :demand t
 
  :custom
  (org-cite-global-bibliography
@@ -707,6 +711,16 @@ and not folder:account.epstudios/Trash")
         (message
          "Mail sync completed with errors; see *mail-sync*"))))
 
+  (defun dem-mail-gmail-force-pull ()
+    "Force a full lieer pull from Gmail, then update notmuch."
+    (interactive)
+    (let ((default-directory dem-mail-gmail-directory))
+      (start-process-shell-command
+       "gmi-force-pull"
+       "*gmi-force-pull*"
+       (format "%s pull -f && notmuch new"
+               (shell-quote-argument dem-mail-gmi-program)))))
+
   :hook
   (notmuch-message-mode-hook . dem-notmuch-disable-corfu)
   
@@ -718,7 +732,9 @@ and not folder:account.epstudios/Trash")
 	:map notmuch-tree-mode-map
         ("d" . dem-notmuch-tree-trash-message)
 	:map notmuch-common-keymap
-        ("G" . dem-notmuch-sync)))
+        ("G" . dem-notmuch-sync)
+	:map notmuch-common-keymap
+	("C-c G" . dem-mail-gmail-force-pull)))
 
 (use-package ol-notmuch
   :ensure t)
