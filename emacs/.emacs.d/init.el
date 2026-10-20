@@ -282,47 +282,100 @@
 
 (setq org-agenda-custom-commands
       '(
-      ;; To be developed to be main custom agenda view.
-      ("A" "Custom agenda"
-       ((tags-todo "*"
-                   ((org-agenda-overriding-header "Priority projects\n")
-		    (org-agenda-block-separator nil)
-                    (org-agenda-skip-function #'prot-org-agenda-include-priority-no-timestamp))
-                   )
-        (agenda ""
-                ((org-agenda-span 1)
-		 (org-agenda-block-separator nil)
-		 (org-agenda-overriding-header "\nToday's agenda\n")))))
-      ;; Temporary agenda view to find orphaned tasks.
-      ("D" "Debug"
-       ((tags-todo "*"
-                   ((org-agenda-overriding-header "Orphaned tasks?\n")
-                    (org-agenda-skip-function #'alt-prot-org-agenda-include-priority-no-timestamp)))))
-      ;; Default custom command replicated here.
-      ("n" "Agenda and all TODOs"
-       ((agenda "")
-        (alltodo "")))))
+        ;; To be developed to be main custom agenda view.
+        ("A" "Custom agenda"
+         ((tags-todo "*"
+                     ((org-agenda-overriding-header "Priority projects\n")
+    		      (org-agenda-block-separator nil)
+                      (org-agenda-skip-function #'prot-org-agenda-include-priority-no-timestamp))
+                     )
+    	  (agenda "" ((org-agenda-overriding-header "\nPending scheduled tasks")
+    		      (org-agenda-time-grid nil)
+    		      (org-agenda-start-on-weekday nil)
+    		      (org-agenda-span 1)
+    		      (org-agenda-show-all-dates nil)
+    		      (org-scheduled-past-days 365)
+    		      ;; Exclude today's schedule items
+    		      (org-scheduled-delay-days 1)
+    		      (org-agenda-block-separator nil)
+    		      (org-agenda-entry-types '(:scheduled))
+    		      (org-agenda-skip-function #'(org-agenda-skip-entry-if 'todo 'done))
+                      (org-agenda-day-face-function (lambda (date) 'org-agenda-date))
+                      (org-agenda-format-date "")))
+          (agenda ""
+                  ((org-agenda-span 1)
+                   (org-scheduled-past-days 0)
+                   (org-agenda-block-separator nil)
+                   (org-agenda-day-face-function (lambda (date) 'org-agenda-date))
+  		   (org-deadline-warning-days 0)
+                   (org-agenda-format-date "%A %-e %B %Y")
+                   (org-agenda-overriding-header "\nToday's agenda\n")))
+  	  (agenda "" ((org-agenda-overriding-header "\nNext three days\n")
+                      (org-agenda-start-on-weekday nil)
+                      (org-agenda-start-day nil)
+                      (org-agenda-start-day "+1d")
+                      (org-agenda-span 3)
+                      (org-deadline-warning-days 0)
+                      (org-agenda-block-separator nil)
+                      (org-agenda-skip-function '(org-agenda-skip-entry-if 'todo 'done))))
+          (agenda "" ((org-agenda-overriding-header "\nUpcoming deadlines (+14d)\n")
+                      (org-agenda-time-grid nil)
+                      (org-agenda-start-on-weekday nil)
+                      ;; We don't want to replicate the previous section's
+                      ;; three days, so we start counting from the day after.
+                      (org-agenda-start-day "+4d")
+                      (org-agenda-span 14)
+                      (org-agenda-show-all-dates nil)
+                      (org-deadline-warning-days 0)
+                      (org-agenda-block-separator nil)
+                      (org-agenda-entry-types '(:deadline))
+                      (org-agenda-skip-function '(org-agenda-skip-entry-if 'todo 'done)))
+                  )
+        (tags-todo "*"
+                     ((org-agenda-overriding-header "\nLow priorty tasks\n")
+                      (org-agenda-skip-function #'alt-prot-org-agenda-include-low-priority-no-timestamp)))))
+;; Temporary agenda view to find orphaned tasks.
+("D" "Debug"
+ ((tags-todo "*"
+             ((org-agenda-overriding-header "Orphaned tasks?\n")
+              (org-agenda-skip-function #'alt-prot-org-agenda-include-priority-no-timestamp)))))
+;; Default custom command replicated here.
+("n" "Agenda and all TODOs"
+ ((agenda "")
+  (alltodo "")))))
 
 ;; This helper function is taken from Prot's config.
 (defun prot-org-agenda-include-priority-no-timestamp ()
   "Return nil if heading has a priority but no timestamp.
-Otherwise, return the buffer position from where the search should
-continue, per `org-agenda-skip-function'."
+    Otherwise, return the buffer position from where the search should
+    continue, per `org-agenda-skip-function'."
   (let ((point (point)))
     (if (and (eq (nth 3 (org-heading-components)) ?A)
-             (not (org-get-deadline-time point))
-             (not (org-get-scheduled-time point)))
+  	     (not (org-get-deadline-time point))
+  	     (not (org-get-scheduled-time point)))
         nil
       (line-beginning-position 2))))
 
 ;; A slight modification of the above to find any heading without a timestamp.
 (defun alt-prot-org-agenda-include-priority-no-timestamp ()
   "Return nil if heading has no timestamp.
-Otherwise, return the buffer position from where the search should
-continue, per `org-agenda-skip-function'."
+    Otherwise, return the buffer position from where the search should
+    continue, per `org-agenda-skip-function'."
   (let ((point (point)))
     (if (and (not (org-get-deadline-time point))
-             (not (org-get-scheduled-time point)))
+  	     (not (org-get-scheduled-time point)))
+        nil
+      (line-beginning-position 2))))
+
+
+(defun alt-prot-org-agenda-include-low-priority-no-timestamp ()
+  "Return nil if heading has no timestamp and not priority A
+    Otherwise, return the buffer position from where the search should
+    continue, per `org-agenda-skip-function'."
+  (let ((point (point)))
+    (if (and (not (org-get-deadline-time point))
+	     (not (eq (nth 3 (org-heading-components)) ?A))
+  	     (not (org-get-scheduled-time point)))
         nil
       (line-beginning-position 2))))
 
