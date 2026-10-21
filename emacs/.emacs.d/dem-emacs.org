@@ -559,9 +559,16 @@ Like much of this configuration, I am basing my custom org agenda on [[https://p
       
 This is roughly in line with what the Org mode manual recommends.  However in practice I have overused scheduled tasks in that I often just schedule a task to start when I create it, so that it constantly appears on the default agenda until I do it.  I have some undated tasks that don't appear in the default agenda view.  I have some tasks with a date that is neither a scheduled or a deadline date.  Those tasks appear the week of their date in the default agenda view, then disappear forever, unlike scheduled or deadline tasks.
 
-So what I'd like to end up with is a division of the agenda view into undated tasks/projects, then probably a week view or a look ahead view of seven days, with maybe a list of lower priority projects at the bottom or in another custom view.  As I haven't been consistently using the priority system in Org mode (#A, #B, #C), I don't think duplicating Prot's setup exactly will work.
+Recently I have settle on an agenda very similar to Prot's.  I have:
+   - Priority projects :: Undated tasks with priority A.
+   - Pending scheduled tasks :: Scheduled tasks that are past due.
+   - Today's agenda :: Scheduled and deadline tasks for today.
+   - Next five day :: Schedule and deadline tasks in the next five days.
+   - Upcoming deadlines :: Deadlines for the next 6-14 days.
+   - Low priority tasks :: Undated tasks not priority A.
 
-For the moment I am implementing a Debug view that will help me identify orphaned tasks and either fix them or archive them.  After that I will work on finishing the customization of the agenda.
+This is very similar to Prot's scheme with just an expansion of his "Next three days" to five days, and the addition of low priority tasks.  I need the latter because sometimes I add tasks that are indeed low priority, and they would disappear if not added to the agenda.
+
       
 #+begin_src emacs-lisp :tangle "init.el"
   (setq org-agenda-custom-commands
@@ -594,11 +601,10 @@ For the moment I am implementing a Debug view that will help me identify orphane
     		   (org-deadline-warning-days 0)
                      (org-agenda-format-date "%A %-e %B %Y")
                      (org-agenda-overriding-header "\nToday's agenda\n")))
-    	  (agenda "" ((org-agenda-overriding-header "\nNext three days\n")
+    	  (agenda "" ((org-agenda-overriding-header "\nNext five days\n")
                         (org-agenda-start-on-weekday nil)
-                        (org-agenda-start-day nil)
                         (org-agenda-start-day "+1d")
-                        (org-agenda-span 3)
+                        (org-agenda-span 5)
                         (org-deadline-warning-days 0)
                         (org-agenda-block-separator nil)
                         (org-agenda-skip-function '(org-agenda-skip-entry-if 'todo 'done))))
@@ -606,8 +612,8 @@ For the moment I am implementing a Debug view that will help me identify orphane
                         (org-agenda-time-grid nil)
                         (org-agenda-start-on-weekday nil)
                         ;; We don't want to replicate the previous section's
-                        ;; three days, so we start counting from the day after.
-                        (org-agenda-start-day "+4d")
+                        ;; five days, so we start counting from the day after.
+                        (org-agenda-start-day "+6d")
                         (org-agenda-span 14)
                         (org-agenda-show-all-dates nil)
                         (org-deadline-warning-days 0)
@@ -617,6 +623,7 @@ For the moment I am implementing a Debug view that will help me identify orphane
                     )
           (tags-todo "*"
                        ((org-agenda-overriding-header "\nLow priorty tasks\n")
+                        (org-agenda-block-separator nil)
                         (org-agenda-skip-function #'alt-prot-org-agenda-include-low-priority-no-timestamp)))))
   ;; Temporary agenda view to find orphaned tasks.
   ("D" "Debug"
@@ -663,6 +670,9 @@ For the moment I am implementing a Debug view that will help me identify orphane
           nil
         (line-beginning-position 2))))
 #+end_src
+
+#+RESULTS:
+: alt-prot-org-agenda-include-low-priority-no-timestamp
 
 ** Olivetti
 This is a pleasant "no distractions" mode that I use when typing text on full-screen Emacs.
