@@ -228,6 +228,16 @@ Use =savehist-mode= to save the minibuffer history.  It also uses a directory in
   (savehist-mode 1)
 #+end_src
 
+Multisession variables will be persisted in the var/ directory.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (setq multisession-directory
+        (expand-file-name "multisession/" dem-var-directory))
+#+end_src
+
+#+RESULTS:
+: /Users/mannd/.emacs.d/var/multisession/
+
 ** Disabled commands
 Disable some warnings from Emacs for rarely used commands.
 
@@ -512,12 +522,16 @@ Although I set up the Org agenda here, I am working on a custom agenda which you
     (org-hide-emphasis-markers t)
     (org-log-done 'time)
     (org-log-into-drawer "LOGBOOK")
+    (org-id-locations-file (expand-file-name "org-id-locations" dem-var-directory))
     (org-tags-column 0)) ; tags are just after headline
   ;; Other options
   ;; to be tested to see if these are indeed useful
   ;; (org-M-RET-may-split-line '((default . nil)))
   ;; (org-insert-heading-respect-content t)
 #+end_src
+
+#+RESULTS:
+: org-switchb
 
 Org-appear shows org delimiters when the point is over them, making their editing easier.
 
